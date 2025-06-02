@@ -28,9 +28,11 @@ void VNH7070AS::setSpeed(int8_t duty) {
     if (duty > 0) {
         _digitalWriteFn(_inaPin, true);
         _digitalWriteFn(_inbPin, false);
+        selectDiagnostic(true);
     } else if (duty < 0) {
         _digitalWriteFn(_inaPin, false);
         _digitalWriteFn(_inbPin, true);
+        selectDiagnostic(false);
     } else {
         _digitalWriteFn(_inaPin, false);
         _digitalWriteFn(_inbPin, false);
