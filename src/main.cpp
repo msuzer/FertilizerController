@@ -6,6 +6,7 @@
 #include "CircularBuffer.h"
 #include "PIController.h"
 #include "BLETextServer.h"
+#include "BLECommandParser.h"
 
 #if CONFIG_IDF_TARGET_ESP32  // ESP32/PICO-D4
 #include "esp32/rom/rtc.h"
@@ -62,7 +63,8 @@ CircularBuffer ch3(buffer3, BUF_SIZE);
 // --- Create ADS1115 instance ---
 ADS1115 ads(Wire);
 TinyGPSPlus gpsModule;
-BLETextServer ble("MyBLEDevice");
+extern BLECommandParser parser;
+BLETextServer bleServer("MyBLEDevice");
 
 void die(const char* message);
 void verbose_print_reset_reason(int reason);
@@ -142,8 +144,11 @@ bool checkMotorStuck(int motorId, float current) {
     return false;
 }
 
-void onWriteCallback(const char* data, size_t len) {
-    Serial.printf("Received: %.*s\n", len, data);
+void onWriteCallback(const char* message, size_t len) {
+    if (message != nullptr) {
+      Serial.printf("Received: %.*s\n", len, message);
+      parser.dispatchInstruction(message);
+    }
 }
 
 const char* onReadCallback() {
@@ -185,12 +190,12 @@ void setup() {
     timerAlarmWrite(timer, TIMER_PERIOD_US, true);         // Set period
     timerAlarmEnable(timer);                               // Enable timer
 
-    ble.onWrite(onWriteCallback);
-    ble.onRead(onReadCallback);
-    ble.onConnect(onConnectCallback);
-    ble.onDisconnect(onDisconnectCallback);
+    bleServer.onWrite(onWriteCallback);
+    bleServer.onRead(onReadCallback);
+    bleServer.onConnect(onConnectCallback);
+    bleServer.onDisconnect(onDisconnectCallback);
 
-    ble.start();
+    bleServer.start();
 }
 
 void loop() {
@@ -237,7 +242,7 @@ void loop() {
       gpsModule.encode(Serial1.read());
     }
 
-    const char* msg = ble.getReceived();
+    const char* msg = bleServer.getReceived();
     if (msg) {
         Serial.printf("Buffered: %s\n", msg);
     }
@@ -245,7 +250,7 @@ void loop() {
     static uint32_t last = 0;
     if (millis() - last > 5000) {
         last = millis();
-        ble.printf("Status update at %lu ms", last);
+        bleServer.notifyFormatted("Status update at %lu ms", last);
     }
 
     delay(10); // Sample rate

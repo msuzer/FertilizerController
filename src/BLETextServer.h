@@ -27,7 +27,12 @@ public:
     void stop();
 
     void notify(const char* text);
-    void printf(const char* format, ...);
+    void notifyFormatted(const char* format, ...);
+    void notifyString(const char* prefix, String str);
+    void notifyValue(const char* prefix, int value);
+    void notifyValue(const char* prefix, float value);
+    void notifyIndexedValue(const char* prefix, int index, int value);
+    void notifyIndexedValue(const char* prefix, int index, float value);
     const char* getReceived();
 
 private:

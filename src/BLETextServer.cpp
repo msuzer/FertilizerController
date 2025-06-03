@@ -102,13 +102,33 @@ void BLETextServer::notify(const char* text) {
     }
 }
 
-void BLETextServer::printf(const char* format, ...) {
+void BLETextServer::notifyFormatted(const char* format, ...) {
     static char buf[BUFFER_SIZE];
     va_list args;
     va_start(args, format);
     vsnprintf(buf, sizeof(buf), format, args);
     va_end(args);
     notify(buf);
+}
+
+void BLETextServer::notifyString(const char* prefix, String str) {
+  notifyFormatted("%s=%s", prefix, str.c_str());
+}
+
+void BLETextServer::notifyValue(const char* prefix, int value) {
+  notifyFormatted("%s=%d", prefix, value);
+}
+
+void BLETextServer::notifyValue(const char* prefix, float value) {
+  notifyFormatted("%s=%.2f", prefix, value);
+}
+
+void BLETextServer::notifyIndexedValue(const char* prefix, int index, int value) {
+  notifyFormatted("%s%d=%d", prefix, index, value);
+}
+
+void BLETextServer::notifyIndexedValue(const char* prefix, int index, float value) {
+  notifyFormatted("%s%d=%.2f", prefix, index, value);
 }
 
 const char* BLETextServer::getReceived() {
