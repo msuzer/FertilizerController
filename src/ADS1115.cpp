@@ -1,5 +1,9 @@
 #include "ADS1115.h"
 
+// Your resistor values for current measurement
+const float Rtop = 4700.0f;   // 4.7k
+const float Rbottom = 1000.0f; // 1k
+
 // ADS1115 Register Addresses
 constexpr uint8_t ADS1115_REG_CONVERSION = 0x00;
 constexpr uint8_t ADS1115_REG_CONFIG     = 0x01;
@@ -110,4 +114,22 @@ float ADS1115::readVoltageDifferential(uint8_t channel1, uint8_t channel2) {
 float ADS1115::rawToVoltage(int16_t raw) const {
     // ADS1115 uses 16-bit signed integer: -32768 to +32767
     return static_cast<float>(raw) * getFSR() / 32768.0f;
+}
+
+float ADS1115::mapRawToFloat(int16_t raw, float conversionFactor, int16_t rawMin, int16_t rawMax) const {
+    if (rawMax == rawMin) return 0.0f; // avoid division by zero
+
+    // Clamp raw to defined range
+    if (raw < rawMin) raw = rawMin;
+    if (raw > rawMax) raw = rawMax;
+
+    float percent = static_cast<float>(raw - rawMin) / (rawMax - rawMin);  // 0.0 to 1.0
+    return percent * conversionFactor;
+}
+
+float ADS1115::rawToCurrent(int16_t raw) const {
+  const float csSensitivity = 0.010f;
+  const float dividerFactor = (Rtop + Rbottom) / Rbottom; // 5.7
+  float csVoltage = rawToVoltage(raw) * dividerFactor;
+  return csVoltage / csSensitivity;
 }

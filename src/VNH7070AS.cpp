@@ -1,5 +1,9 @@
 #include "VNH7070AS.h"
 #include <stdlib.h>
+#include <Arduino.h>
+
+#define STUCK_CURRENT_THRESHOLD     2.5f // Amps (example)
+#define STUCK_DETECTION_COUNT       5        // Number of consecutive samples
 
 VNH7070AS::VNH7070AS(
     uint8_t inaPin,
@@ -17,6 +21,13 @@ VNH7070AS::VNH7070AS(
     _digitalWriteFn(digitalWriteFn)
 {
     // User should handle pinMode setup elsewhere
+}
+
+void VNH7070AS::setupPins(void) {
+    pinMode(_inaPin, OUTPUT);
+    pinMode(_inbPin, OUTPUT);
+    pinMode(_pwmPin, OUTPUT);
+    pinMode(_sel0Pin, OUTPUT);
 }
 
 void VNH7070AS::setSpeed(int8_t duty) {
@@ -53,6 +64,17 @@ void VNH7070AS::brake() {
     _digitalWriteFn(_inaPin, true);
     _digitalWriteFn(_inbPin, true);
     _pwmWriteFn(_pwmPin, 0);
+}
+
+bool VNH7070AS::checkStuck(float current) {
+    if (current >= STUCK_CURRENT_THRESHOLD) {
+        if (++stuckCounter >= STUCK_DETECTION_COUNT) {
+            return _isStuck = true;
+        }
+    } else {
+        stuckCounter = 0;
+    }
+    return _isStuck = false;
 }
 
 void VNH7070AS::selectDiagnostic(bool sel0State) {

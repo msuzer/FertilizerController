@@ -1,8 +1,19 @@
 #include "PIController.h"
+#include <Preferences.h>
+
+static const char* prefName = "PIData";
 
 PIController::PIController(float Kp, float Ki, float outputMin, float outputMax)
     : _Kp(Kp), _Ki(Ki), _outputMin(outputMin), _outputMax(outputMax), _integral(0.0f)
 {
+}
+
+void PIController::begin() {
+    Preferences prefs;
+    prefs.begin(prefName, true);
+    _Kp = prefs.getFloat("PIKp", DEFAULT_KP_VALUE);
+    _Ki = prefs.getFloat("PIKi", DEFAULT_KI_VALUE);
+    prefs.end();
 }
 
 float PIController::compute(float setpoint, float measurement, float dt) {

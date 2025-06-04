@@ -14,7 +14,8 @@
 enum class ParamType {
     NONE,
     INT,
-    FLOAT
+    FLOAT,
+    STRING
 };
 
 struct ParsedInstruction {
@@ -26,6 +27,7 @@ struct ParsedInstruction {
         float f;
     } postParam;
     ParamType postParamType = ParamType::NONE;
+    char postParamStr[MAX_COMMAND_STRLEN] = {0};
 };
 
 //using CommandHandler = std::function<void(const ParsedInstruction&)>; // C++11 Lambda

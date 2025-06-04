@@ -17,13 +17,18 @@ public:
         DigitalWriteCallback digitalWriteFn
     );
 
+    void setupPins(void);
     void setSpeed(int8_t duty);  // -100 to +100, 0 = stop
     void stop();                 // INA/INB LOW
     void brake();                // INA/INB HIGH
+    bool isStuck(void) {return _isStuck; }
+    bool checkStuck(float current);
     void selectDiagnostic(bool sel0State);
 
 private:
     uint8_t _inaPin, _inbPin, _pwmPin, _sel0Pin;
     PwmWriteCallback _pwmWriteFn;
     DigitalWriteCallback _digitalWriteFn;
+    int stuckCounter = 0;
+    bool _isStuck = false;
 };

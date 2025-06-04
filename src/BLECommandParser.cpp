@@ -34,7 +34,7 @@ void BLECommandParser::dispatchInstruction(const std::string& input) {
 }
 
 bool BLECommandParser::parseInstruction(const std::string& input, ParsedInstruction& out) {
-    char cmd[32];
+    char cmd[32], val[32];
     int i1, i2;
     float f2;
 
@@ -77,6 +77,15 @@ bool BLECommandParser::parseInstruction(const std::string& input, ParsedInstruct
                 out.postParam.i = i2;
                 out.postParamType = ParamType::INT;
                 printf("Parsed: %s=%d\n", out.command, out.postParam.i);
+                return true;
+            }
+
+            if (sscanf(input.c_str(), "%31[^=]=%31[^\n]", cmd, val) == 2) {
+                strcpy(out.command, cmd);
+                strncpy(out.postParamStr, val, sizeof(out.postParamStr));
+                out.postParamStr[sizeof(out.postParamStr) - 1] = '\0';
+                out.postParamType = ParamType::STRING;
+                printf("Parsed: %s=%s (as string)\n", out.command, out.postParamStr);
                 return true;
             }
         }

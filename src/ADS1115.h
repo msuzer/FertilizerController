@@ -36,6 +36,8 @@ public:
     float readVoltageDifferential(uint8_t channel1, uint8_t channel2);
 
     float rawToVoltage(int16_t raw) const;
+    float rawToCurrent(int16_t raw) const;
+    float mapRawToFloat(int16_t raw, float conversionFactor = 1.0f, int16_t rawMin = 0, int16_t rawMax = 32767) const;
 
     Gain getGain() const;
     float getFSR() const;
