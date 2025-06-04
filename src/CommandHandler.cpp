@@ -66,7 +66,7 @@ void registerUserCommandHandlers(void) {
     parser.registerCommand(CMD_GET_ERROR_INFO, handlerGetErrorInfo);
     parser.registerCommand(CMD_SET_PI_KP, handlerSetPIDKp);
     parser.registerCommand(CMD_SET_PI_KI, handlerSetPIDKi);
-    parser.registerCommand(CMD_REPORT_PID_PARAMS, handlerReportPIDParams);
+    parser.registerCommand(CMD_REPORT_PID_PARAMS, handlerReportPIParams);
     parser.registerCommand(CMD_REPORT_USER_PARAMS, handlerReportUserParams);
 
     parser.sortCommands();
@@ -147,7 +147,7 @@ void handlerGetTaskInfo(const ParsedInstruction& instr) {
 
     snprintf(jsonBuf, sizeof(jsonBuf),
         "{\n"
-        "  \"taskinfo\": {\n"
+        "  \"taskInfo\": {\n"
         "    \"flowDaaSet\": %.2f,\n"
         "    \"flowMinSet\": %.2f,\n"
         "    \"flowDaaReal\": %.2f,\n"
@@ -166,11 +166,29 @@ void handlerGetTaskInfo(const ParsedInstruction& instr) {
     bleServer.notify(jsonBuf);
 }
 
-void handlerStartNewTask(const ParsedInstruction& instr) {
-    // float ftemp = ui.restoreSingleParam("TankLevel", DEFAULT_VALUE_TANK_INITIAL_LEVEL);
-    // ui.setTankLevel(ftemp);
+void handlerReportPIParams(const ParsedInstruction& instr) {
+    char jsonBuf[512];
+    float piKp = pi1.getPIKp();
+    float piKi = pi1.getPIKi();
 
-    ui.setTankLevel(DEFAULT_TANK_INITIAL_LEVEL);
+    snprintf(jsonBuf, sizeof(jsonBuf),
+        "{\n"
+        "  \"piInfo\": {\n"
+        "    \"piKp\": %.2f,\n"
+        "    \"piKi\": %.2f,\n"
+        "  }\n"
+        "}",
+        piKp, piKi
+    );
+
+    Serial.println(jsonBuf);
+    bleServer.notify(jsonBuf);
+}
+
+void handlerStartNewTask(const ParsedInstruction& instr) {
+    float ftemp = ui.restoreSingleParam("TankLevel", DEFAULT_TANK_INITIAL_LEVEL);
+    ui.setTankLevel(ftemp);
+
     ui.clearTaskDuration();
     ui.clearLiquidConsumed();
     ui.clearAreaCompleted();
@@ -206,8 +224,8 @@ void handlerSetTargetFlowRatePerDaa(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
         ui.setTargetFlowRatePerDaa(instr.postParam.f);
         ui.setTargetFlowRatePerMin(0.0f);
-        // ui.saveSingleParam("flowRateDaa", ui.getTargetFlowRatePerMin());
-        // ui.saveSingleParam("flowRateMin", ui.getTargetFlowRatePerDaa());
+        ui.saveSingleParam("flowRateDaa", ui.getTargetFlowRatePerMin());
+        ui.saveSingleParam("flowRateMin", ui.getTargetFlowRatePerDaa());
     }
 
     bleServer.notifyValue(CMD_SET_TARGET_FLOW_RATE_DAA, ui.getTargetFlowRatePerDaa());
@@ -217,8 +235,8 @@ void handlerSetTargetFlowRatePerMin(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
         ui.setTargetFlowRatePerMin(instr.postParam.f);
         ui.setTargetFlowRatePerDaa(0.0f);
-        // ui.saveSingleParam("flowRateDaa", ui.getTargetFlowRatePerMin());
-        // ui.saveSingleParam("flowRateMin", ui.getTargetFlowRatePerDaa());
+        ui.saveSingleParam("flowRateDaa", ui.getTargetFlowRatePerMin());
+        ui.saveSingleParam("flowRateMin", ui.getTargetFlowRatePerDaa());
     }
 
     bleServer.notifyValue(CMD_SET_TARGET_FLOW_RATE_MIN, ui.getTargetFlowRatePerMin());
@@ -231,7 +249,7 @@ void handlerSetMeasuredWeight(const ParsedInstruction& instr) {
 void handlerSetSpeedSource(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::STRING) {
         ui.setSpeedSource(instr.postParamStr);
-        //ui.saveSingleParam("SpeedSource", ui.getSpeedSource());
+        ui.saveSingleParam("SpeedSource", ui.getSpeedSource());
     }
     bleServer.notifyString(CMD_SET_SPEED_SOURCE, ui.getSpeedSource());
 }
@@ -239,7 +257,7 @@ void handlerSetSpeedSource(const ParsedInstruction& instr) {
 void handlerSetMinWorkingSpeed(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
         ui.setMinWorkingSpeed(instr.postParam.f);
-        // ui.saveSingleParam("MinSpeed", ui.getMinWorkingSpeed());
+        ui.saveSingleParam("MinSpeed", ui.getMinWorkingSpeed());
     }
     bleServer.notifyValue(CMD_SET_MIN_WORKING_SPEED, ui.getMinWorkingSpeed());
 }
@@ -247,7 +265,7 @@ void handlerSetMinWorkingSpeed(const ParsedInstruction& instr) {
 void handlerSetSimSpeed(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
         ui.setSimSpeed(instr.postParam.f);
-        // ui.saveSingleParam("GroundSpeed", ui.getGroundSpeed());
+        ui.saveSingleParam("SimSpeed", ui.getSimSpeed());
     }
     bleServer.notifyValue(CMD_SET_SIM_SPEED, ui.getSimSpeed());
 }
@@ -255,7 +273,7 @@ void handlerSetSimSpeed(const ParsedInstruction& instr) {
 void handlerSetTankLevel(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::INT) {
         ui.setTankLevel(instr.postParam.i);
-        // ui.saveSingleParam("TankLevel", ui.getTankLevel());
+        ui.saveSingleParam("TankLevel", ui.getTankLevel());
     }
     bleServer.notifyValue(CMD_SET_TANK_LEVEL, ui.getTankLevel());
 }
@@ -263,7 +281,7 @@ void handlerSetTankLevel(const ParsedInstruction& instr) {
 void handlerSetAutoRefreshPeriod(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::INT) {
         ui.setAutoRefreshPeriod(instr.postParam.i);
-        // ui.saveSingleParam("AutoRefresh", ui.getAutoRefreshPeriod());
+        ui.saveSingleParam("AutoRefresh", ui.getAutoRefreshPeriod());
     }
     bleServer.notifyValue(CMD_SET_AUTO_REFRESH_PERIOD, ui.getAutoRefreshPeriod());
 }
@@ -271,7 +289,7 @@ void handlerSetAutoRefreshPeriod(const ParsedInstruction& instr) {
 void handlerSetHeartBeatPeriod(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::INT) {
         ui.setHeartBeatPeriod(instr.postParam.i);
-        //ui.saveSingleParam("HeartBeat", ui.getHeartBeatPeriod());
+        ui.saveSingleParam("HeartBeat", ui.getHeartBeatPeriod());
     }
     bleServer.notifyValue(CMD_SET_HEARTBEAT_PERIOD, ui.getHeartBeatPeriod());
 }
@@ -284,7 +302,7 @@ void handlerSetPIDKp(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
         pi1.setPIKp(instr.postParam.f);
         pi2.setPIKp(instr.postParam.f);
-        // ui.saveSingleParam("PIKp", pi1.getPIKp());
+        ui.saveSingleParam("PIKp", pi1.getPIKp());
     }
     bleServer.notifyValue(CMD_SET_PI_KP, pi1.getPIKp());
 }
@@ -293,13 +311,9 @@ void handlerSetPIDKi(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
         pi1.setPIKi(instr.postParam.f);
         pi2.setPIKi(instr.postParam.f);
-        // ui.saveSingleParam("PIKi", pi1.getPIKi());
+        ui.saveSingleParam("PIKi", pi1.getPIKi());
     }
     bleServer.notifyValue(CMD_SET_PI_KI, pi1.getPIKi());
-}
-
-void handlerReportPIDParams(const ParsedInstruction& instr) {
-    // TODO: implement handlerReportPIDParams
 }
 
 void handlerReportUserParams(const ParsedInstruction& instr) {

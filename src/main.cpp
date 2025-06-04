@@ -41,13 +41,13 @@
 #define ADS1115_I2C_ADDRESS 0x48
 
 // === User-Defined Timer Frequency ===
-#define CONTROL_FREQUENCY_HZ 10                  // Control loop frequency in Hz
-#define TIMER_PERIOD_US (1000000 / CONTROL_FREQUENCY_HZ)  // Period in microseconds
-
-// --- Define buffer size ---
-constexpr size_t ADS1115_BUF_SIZE = 8;
+#define TASK_LOOP_UPDATE_FREQUENCY_HZ         1  // Task loop frequency in Hz
+#define CONTROL_LOOP_UPDATE_FREQUENCY_HZ      10 // Control loop frequency in Hz
+#define TIMER_PERIOD_US(Freq)                 (1000000 / Freq)  // Period in microseconds
 
 // --- Allocate fixed-size buffers for each ADS1115 channel ---
+constexpr size_t ADS1115_BUF_SIZE = 8;
+
 int16_t buffer0[ADS1115_BUF_SIZE];
 int16_t buffer1[ADS1115_BUF_SIZE];
 int16_t buffer2[ADS1115_BUF_SIZE];
@@ -66,41 +66,34 @@ extern BLECommandParser parser;
 BLETextServer bleServer(DEFAULT_BLE_DEVICE_NAME);
 UserInterface ui;
 
-
-void die(const char* message);
-void verbose_print_reset_reason(int reason);
-
-// PWM write function using ESP32's ledcWrite
-void writePwmESP32(uint8_t pin, uint8_t duty) {
-    ledcWrite(pin, duty);
-}
-
-// GPIO write function
-void writeDigitalESP32(uint8_t pin, bool state) {
-    digitalWrite(pin, state ? HIGH : LOW);
-}
-
 // PI Controllers for two motors
-PIController pi1(0.5f, 0.1f, -100.0f, 100.0f);
-PIController pi2(0.5f, 0.1f, -100.0f, 100.0f);
+PIController pi1(DEFAULT_KP_VALUE, DEFAULT_KI_VALUE, -100.0f, 100.0f);
+PIController pi2(DEFAULT_KP_VALUE, DEFAULT_KI_VALUE, -100.0f, 100.0f);
 
 // Instantiate the drivers
+// PWM write function using ESP32's ledcWrite
+inline void writePwmESP32(uint8_t pin, uint8_t duty) { ledcWrite(pin, duty); }
+inline void writeDigitalESP32(uint8_t pin, bool state) { digitalWrite(pin, state ? HIGH : LOW); }
 VNH7070AS motor1(VNH7070AS_INA1Pin, VNH7070AS_INB1Pin, VNH7070AS_PWM1Pin, VNH7070AS_SEL1Pin, writePwmESP32, writeDigitalESP32);
 VNH7070AS motor2(VNH7070AS_INA2Pin, VNH7070AS_INB2Pin, VNH7070AS_PWM2Pin, VNH7070AS_SEL2Pin, writePwmESP32, writeDigitalESP32);
 
-// Target setpoints (user-defined, e.g., from GUI or serial)
-volatile float target1 = 50.0f;  // Example setpoint (%)
-volatile float target2 = 70.0f;
-
 // === Timer Setup ===
-hw_timer_t *timer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 bool timerAlarmOccurred = false;
 
-void IRAM_ATTR controlLoopISR() {
+void die(const char* message);
+void printResetReason(int reason);
+static void taskLoopUpdateCallback(void *p);
+static void controlLoopUpdateCallback(void *p);
+
+static void taskLoopUpdateCallback(void *p) {
+  // TODO Update Task Parameters Here!
+}
+
+static void controlLoopUpdateCallback(void *p) {
   portENTER_CRITICAL_ISR(&timerMux);
 
-  constexpr float dt = 1.0f / CONTROL_FREQUENCY_HZ;
+  constexpr float dt = 1.0f / CONTROL_LOOP_UPDATE_FREQUENCY_HZ;
 
   // Read feedback (pot values)
   // --- Compute averages and convert to voltage ---
@@ -113,6 +106,10 @@ void IRAM_ATTR controlLoopISR() {
   float pos2 = ads1115.rawToVoltage(avgRaw1);
   float current1 = ads1115.rawToCurrent(avgRaw2);
   float current2 = ads1115.rawToCurrent(avgRaw3);
+
+  // Target setpoints (user-defined, e.g., from GUI or serial)
+  volatile float target1 = ui.getTargetFlowRatePerDaa();  // Example setpoint
+  volatile float target2 = ui.getTargetFlowRatePerDaa();
 
   float duty1 = pi1.compute(target1, pos1, dt);
   float duty2 = pi2.compute(target2, pos2, dt);
@@ -165,6 +162,23 @@ void die(const char* message) {
   }
 }
 
+esp_err_t setupPeriodicAlarm(const esp_timer_create_args_t & timer_args, uint64_t period) {
+  esp_timer_handle_t timer_handle;
+  esp_err_t ret;
+
+  ret = esp_timer_create(&timer_args, &timer_handle);
+  if (ret != ESP_OK) {
+    return ret;
+  }
+
+  ret = esp_timer_start_periodic(timer_handle, period);
+  if (ret != ESP_OK) {
+    return ret;
+  }
+
+  return ESP_OK;
+}
+
 void setup() {
   pinMode(RGB_LEDRPin, OUTPUT);
   pinMode(RGB_LEDGPin, OUTPUT);
@@ -189,10 +203,10 @@ void setup() {
   }
 
   printf("CPU0 reset reason: ");
-  verbose_print_reset_reason(rtc_get_reset_reason(0));
+  printResetReason(rtc_get_reset_reason(0));
 
   printf("CPU1 reset reason: ");
-  verbose_print_reset_reason(rtc_get_reset_reason(1));
+  printResetReason(rtc_get_reset_reason(1));
 
   if (!ads1115.begin(ADS1115_I2C_ADDRESS)) {
       die("ADS1115 not found!");
@@ -200,15 +214,29 @@ void setup() {
 
   ads1115.setGain(ADS1115::Gain::FSR_4_096V); // Optional: Set gain
 
+  esp_timer_create_args_t timer_args1 = {
+    .callback = taskLoopUpdateCallback,
+    .arg = NULL,
+    .name = "user_timer"
+  };
+
+  if (setupPeriodicAlarm(timer_args1, TIMER_PERIOD_US(TASK_LOOP_UPDATE_FREQUENCY_HZ)) != ESP_OK) {
+    die("User Timer Setup Failed!\n");
+  }
+
+  esp_timer_create_args_t timer_args2 = {
+    .callback = controlLoopUpdateCallback,
+    .arg = NULL,
+    .name = "pcnt_timer"
+  };
+
+  if (setupPeriodicAlarm(timer_args2, TIMER_PERIOD_US(CONTROL_LOOP_UPDATE_FREQUENCY_HZ)) != ESP_OK) {
+    die("PCNT Timer Setup Failed!\n");
+  }
+
   pi1.begin();
   pi2.begin();
   ui.begin();
-
-  // Timer setup
-  timer = timerBegin(0, 80, true);                      // Timer 0, prescaler 80 (1 tick = 1 µs)
-  timerAttachInterrupt(timer, &controlLoopISR, true);    // Attach ISR
-  timerAlarmWrite(timer, TIMER_PERIOD_US, true);         // Set period
-  timerAlarmEnable(timer);                               // Enable timer
 
   bleServer.onWrite(onWriteCallback);
   bleServer.onRead(onReadCallback);
@@ -281,7 +309,7 @@ extern "C" {
   }
 }
 
-void verbose_print_reset_reason(int reason) {
+void printResetReason(int reason) {
   switch (reason) {
     case 1:  printf("Vbat power on reset\n"); break;
     case 3:  printf("Software reset digital core\n"); break;

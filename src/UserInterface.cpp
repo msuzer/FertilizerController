@@ -57,6 +57,48 @@ void UserInterface::loadFromPreferences() {
   prefs.end();
 }
 
+float UserInterface::restoreSingleParam(const char* key, float defaultValue) {
+  prefs.begin(prefName, true);
+  float savedValue = prefs.getFloat(key, defaultValue);
+  prefs.end();
+
+  return savedValue;
+}
+
+void UserInterface::saveSingleParam(const char *key, const String& value) {
+    prefs.begin(prefName);
+
+    String savedValue = prefs.getString(key);
+    if (value != savedValue) {
+        prefs.putString(key, value);
+    }
+
+    prefs.end();
+}
+
+void UserInterface::saveSingleParam(const char *key, const int value) {
+    prefs.begin(prefName);
+
+    bool keyPresent = prefs.isKey(key);
+    int savedValue = prefs.getInt(key);
+    if (value != savedValue || !keyPresent) {
+        prefs.putInt(key, value);
+    }
+
+    prefs.end();
+}
+
+void UserInterface::saveSingleParam(const char* key, float value) {
+  prefs.begin(prefName);
+
+  float savedValue = prefs.getFloat(key);
+  if (value != savedValue) {
+    prefs.putFloat(key, value);
+  }
+
+  prefs.end();
+}
+
 String UserInterface::readDS18B20ID() {
     auto& sensor = DS18B20Sensor::getInstance();
     if (sensor.isReady()) {

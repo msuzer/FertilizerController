@@ -29,7 +29,7 @@ void handlerGetErrorInfo(const ParsedInstruction& instr);
 void handlerSetPIDKp(const ParsedInstruction& instr);
 void handlerSetPIDKi(const ParsedInstruction& instr);
 
-void handlerReportPIDParams(const ParsedInstruction& instr);
+void handlerReportPIParams(const ParsedInstruction& instr);
 void handlerReportUserParams(const ParsedInstruction& instr);
 
 void registerUserCommandHandlers(void);

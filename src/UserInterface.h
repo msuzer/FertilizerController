@@ -63,6 +63,8 @@ public:
     UserInterface();
     void begin();
 
+    static constexpr size_t BUFFER_SIZE = 256;
+
 #define SET_AND_SAVE_FLOAT(var, key, value) do { var = value; prefs.begin("UI", false); prefs.putFloat(key, value); prefs.end(); } while(0)
 #define SET_AND_SAVE_INT(var, key, value) do { var = value; prefs.begin("UI", false); prefs.putInt(key, value); prefs.end(); } while(0)
 #define SET_AND_SAVE_STRING(var, key, value) do { var = value; prefs.begin("UI", false); prefs.putString(key, value); prefs.end(); } while(0)
@@ -139,11 +141,13 @@ public:
 
     // Preferences
     void loadFromPreferences();
+    float restoreSingleParam(const char* key, float defaultValue);
+    void saveSingleParam(const char* key, const String& value);
+    void saveSingleParam(const char* key, const int value);
+    void saveSingleParam(const char* key, const float value);
 
-    // Set current task state
+    // Current task state
     bool setTaskState(UserTaskState state);
-
-    // Get current task state
     inline UserTaskState getTaskState() const { return taskState; }
 
     // Convenience checks
@@ -155,6 +159,7 @@ public:
     const char* getTaskStateName() const;
     const char* taskStateToString(UserTaskState state) const;
 
+    // GPS Data
     bool isGPSDataValid(void) const;
     Location_t getGPSLocation(void) const;
     int getSatelliteCount(void) const;
