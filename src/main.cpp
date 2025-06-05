@@ -8,7 +8,10 @@
 #include "BLETextServer.h"
 #include "BLECommandParser.h"
 #include "DS18B20Sensor.h"
-#include "UserInterface.h"
+#include "AppServices.h"
+#include "SystemContext.h"
+#include "SystemPreferences.h"
+#include "GPSProvider.h"
 
 #if CONFIG_IDF_TARGET_ESP32  // ESP32/PICO-D4
 #include "esp32/rom/rtc.h"
@@ -59,16 +62,19 @@ CircularBuffer ch1(buffer1, ADS1115_BUF_SIZE);
 CircularBuffer ch2(buffer2, ADS1115_BUF_SIZE);
 CircularBuffer ch3(buffer3, ADS1115_BUF_SIZE);
 
-// --- Create ADS1115 instance ---
+// --- Create Services ---
 ADS1115 ads1115(Wire);
-TinyGPSPlus gpsModule;
-extern BLECommandParser parser;
-BLETextServer bleServer(DEFAULT_BLE_DEVICE_NAME);
-UserInterface ui;
 
-// PI Controllers for two motors
+SystemContext ctx;
+SystemPreferences prefs;
+BLETextServer bleServer(DEFAULT_BLE_DEVICE_NAME);
+BLECommandParser parser;
+TinyGPSPlus gpsModule;
+GPSProvider gpsProvider;
 PIController pi1(DEFAULT_KP_VALUE, DEFAULT_KI_VALUE, -100.0f, 100.0f);
 PIController pi2(DEFAULT_KP_VALUE, DEFAULT_KI_VALUE, -100.0f, 100.0f);
+
+AppServices services(&ctx, &prefs, &bleServer, &parser, &gpsModule, &gpsProvider, &pi1, &pi2);
 
 // Instantiate the drivers
 // PWM write function using ESP32's ledcWrite
@@ -108,8 +114,8 @@ static void controlLoopUpdateCallback(void *p) {
   float current2 = ads1115.rawToCurrent(avgRaw3);
 
   // Target setpoints (user-defined, e.g., from GUI or serial)
-  volatile float target1 = ui.getTargetFlowRatePerDaa();  // Example setpoint
-  volatile float target2 = ui.getTargetFlowRatePerDaa();
+  volatile float target1 = ctx.getLeftChannel().getTargetFlowRatePerDaa();  // Example setpoint
+  volatile float target2 = ctx.getRightChannel().getTargetFlowRatePerDaa();
 
   float duty1 = pi1.compute(target1, pos1, dt);
   float duty2 = pi2.compute(target2, pos2, dt);
@@ -234,10 +240,12 @@ void setup() {
     die("PCNT Timer Setup Failed!\n");
   }
 
-  pi1.begin();
-  pi2.begin();
-  ui.begin();
+  gpsProvider.injectServices(&services);
+  prefs.injectServices(&services);
+  ctx.injectServices(&services);
 
+  ctx.begin();
+  
   bleServer.onWrite(onWriteCallback);
   bleServer.onRead(onReadCallback);
   bleServer.onConnect(onConnectCallback);

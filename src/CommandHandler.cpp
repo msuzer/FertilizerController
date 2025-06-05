@@ -1,10 +1,11 @@
 #include <Arduino.h>
 #include "CommandHandler.h"
-#include "UserInterface.h"
-#include "TinyGPSPlus.h"
+#include "BLECommandParser.h"
 #include "BLETextServer.h"
-#include "DS18B20Sensor.h"
+#include "SystemContext.h"
+#include "GPSProvider.h"
 #include "PIController.h"
+#include "SystemPreferences.h"
 
 static constexpr const char* CMD_SET_BLE_DEVICE_NAME        = "setBLEDevName";
 static constexpr const char* CMD_GET_DEVICE_INFO            = "getDeviceInfo";
@@ -35,56 +36,56 @@ static constexpr const char* CMD_SET_PI_KI                  = "setPIDKi";
 static constexpr const char* CMD_REPORT_PID_PARAMS          = "reportPIDParams";
 static constexpr const char* CMD_REPORT_USER_PARAMS         = "reportUserParams";
 
-extern BLETextServer bleServer;
-extern TinyGPSPlus gps;
-extern UserInterface ui;
-extern PIController pi1;
-extern PIController pi2;
-BLECommandParser parser;
+static AppServices* services = nullptr;
+
+void CommandHandler_setServices(AppServices *s) {
+    services = s;
+}
 
 // when adding new commands, consider increasing 'MAX_COMMANDS' in BLECommandParser
 void registerUserCommandHandlers(void) {
-    parser.registerCommand(CMD_SET_BLE_DEVICE_NAME, handlerSetBLEDeviceName);
-    parser.registerCommand(CMD_GET_DEVICE_INFO, handlerGetDeviceInfo);
-    parser.registerCommand(CMD_GET_SPEED_INFO, handlerGetSpeedInfo);
-    parser.registerCommand(CMD_GET_TASK_INFO, handlerGetTaskInfo);
+    BLECommandParser *parser = services->parser;
+    parser->registerCommand(CMD_SET_BLE_DEVICE_NAME, handlerSetBLEDeviceName);
+    parser->registerCommand(CMD_GET_DEVICE_INFO, handlerGetDeviceInfo);
+    parser->registerCommand(CMD_GET_SPEED_INFO, handlerGetSpeedInfo);
+    parser->registerCommand(CMD_GET_TASK_INFO, handlerGetTaskInfo);
 
-    parser.registerCommand(CMD_START_NEW_TASK, handlerStartNewTask);
-    parser.registerCommand(CMD_PAUSE_TASK, handlerPauseTask);
-    parser.registerCommand(CMD_RESUME_TASK, handlerResumeTask);
-    parser.registerCommand(CMD_END_TASK, handlerEndTask);
-    parser.registerCommand(CMD_SET_IN_WORK_ZONE, handlerSetInWorkZone);
-    parser.registerCommand(CMD_SET_TARGET_FLOW_RATE_DAA, handlerSetTargetFlowRatePerDaa);
-    parser.registerCommand(CMD_SET_TARGET_FLOW_RATE_MIN, handlerSetTargetFlowRatePerMin);
-    parser.registerCommand(CMD_SET_MEASURED_WEIGHT, handlerSetMeasuredWeight);
-    parser.registerCommand(CMD_SET_SPEED_SOURCE, handlerSetSpeedSource);
-    parser.registerCommand(CMD_SET_MIN_WORKING_SPEED, handlerSetMinWorkingSpeed);
-    parser.registerCommand(CMD_SET_SIM_SPEED, handlerSetSimSpeed);
-    parser.registerCommand(CMD_SET_TANK_LEVEL, handlerSetTankLevel);
-    parser.registerCommand(CMD_SET_AUTO_REFRESH_PERIOD, handlerSetAutoRefreshPeriod);
-    parser.registerCommand(CMD_SET_HEARTBEAT_PERIOD, handlerSetHeartBeatPeriod);
-    parser.registerCommand(CMD_GET_ERROR_INFO, handlerGetErrorInfo);
-    parser.registerCommand(CMD_SET_PI_KP, handlerSetPIDKp);
-    parser.registerCommand(CMD_SET_PI_KI, handlerSetPIDKi);
-    parser.registerCommand(CMD_REPORT_PID_PARAMS, handlerReportPIParams);
-    parser.registerCommand(CMD_REPORT_USER_PARAMS, handlerReportUserParams);
+    parser->registerCommand(CMD_START_NEW_TASK, handlerStartNewTask);
+    parser->registerCommand(CMD_PAUSE_TASK, handlerPauseTask);
+    parser->registerCommand(CMD_RESUME_TASK, handlerResumeTask);
+    parser->registerCommand(CMD_END_TASK, handlerEndTask);
+    parser->registerCommand(CMD_SET_IN_WORK_ZONE, handlerSetInWorkZone);
+    parser->registerCommand(CMD_SET_TARGET_FLOW_RATE_DAA, handlerSetTargetFlowRatePerDaa);
+    parser->registerCommand(CMD_SET_TARGET_FLOW_RATE_MIN, handlerSetTargetFlowRatePerMin);
+    parser->registerCommand(CMD_SET_MEASURED_WEIGHT, handlerSetMeasuredWeight);
+    parser->registerCommand(CMD_SET_SPEED_SOURCE, handlerSetSpeedSource);
+    parser->registerCommand(CMD_SET_MIN_WORKING_SPEED, handlerSetMinWorkingSpeed);
+    parser->registerCommand(CMD_SET_SIM_SPEED, handlerSetSimSpeed);
+    parser->registerCommand(CMD_SET_TANK_LEVEL, handlerSetTankLevel);
+    parser->registerCommand(CMD_SET_AUTO_REFRESH_PERIOD, handlerSetAutoRefreshPeriod);
+    parser->registerCommand(CMD_SET_HEARTBEAT_PERIOD, handlerSetHeartBeatPeriod);
+    parser->registerCommand(CMD_GET_ERROR_INFO, handlerGetErrorInfo);
+    parser->registerCommand(CMD_SET_PI_KP, handlerSetPIDKp);
+    parser->registerCommand(CMD_SET_PI_KI, handlerSetPIDKi);
+    parser->registerCommand(CMD_REPORT_PID_PARAMS, handlerReportPIParams);
+    parser->registerCommand(CMD_REPORT_USER_PARAMS, handlerReportUserParams);
 
-    parser.sortCommands();
+    parser->sortCommands();
 }
 
-void handlerSetBLEDeviceName(const ParsedInstruction& instr) {
+void handlerSetBLEDeviceName(const ParsedInstruction &instr) {
     if (instr.postParamType == ParamType::STRING) {
         printf("New BLE Name = %s\n", instr.postParamStr);
-        bleServer.setDeviceName(instr.postParamStr);
+        services->bleServer->setDeviceName(instr.postParamStr);
     }
 }
 
 void handlerGetDeviceInfo(const ParsedInstruction& instr) {
     char jsonBuf[512];
-    const char* bleName = bleServer.getDeviceName();
-    const char* devUUID = ui.getEspID().c_str();
-    const char* sensorUUID = ui.getBoardID().c_str();
-    const char* mac = ui.getBleMAC().c_str();
+    const char* bleName = services->bleServer->getDeviceName();
+    const char* devUUID = services->systemContext->getEspID().c_str();
+    const char* sensorUUID = services->systemContext->getBoardID().c_str();
+    const char* mac = services->systemContext->getBleMAC().c_str();
     const char* fwVersion =  FIRMWARE_VERSION;
     const char* devVersion = DEVICE_VERSION;
 
@@ -103,17 +104,17 @@ void handlerGetDeviceInfo(const ParsedInstruction& instr) {
     );
 
     Serial.println(jsonBuf);
-    bleServer.notify(jsonBuf);
+    services->bleServer->notify(jsonBuf);
 }
 
 void handlerGetSpeedInfo(const ParsedInstruction& instr) {
     char jsonBuf[512];
-    const char* speedSrc = ui.getSpeedSource().c_str();
-    float minSpeed = ui.getMinWorkingSpeed();
-    float simSpeed = ui.getSimSpeed();
-    float gpsSpeed = ui.getGPSSpeed();
-    int sats = ui.getSatelliteCount();
-    Location_t loc = ui.getGPSLocation();
+    const char* speedSrc = services->systemContext->getSpeedSource().c_str();
+    float minSpeed = services->systemContext->getMinWorkingSpeed();
+    float simSpeed = services->systemContext->getSimSpeed();
+    float gpsSpeed = services->gpsProvider->getSpeed();
+    int sats = services->gpsProvider->getSatelliteCount();
+    Location_t loc = services->gpsProvider->getLocation();
 
     snprintf(jsonBuf, sizeof(jsonBuf),
         "{\n"
@@ -131,19 +132,19 @@ void handlerGetSpeedInfo(const ParsedInstruction& instr) {
     );
 
     Serial.println(jsonBuf);
-    bleServer.notify(jsonBuf);
+    services->bleServer->notify(jsonBuf);
 }
 
 void handlerGetTaskInfo(const ParsedInstruction& instr) {
     char jsonBuf[512];
-    float flowDaaSet = ui.getTargetFlowRatePerDaa();
-    float flowMinSet = ui.getTargetFlowRatePerMin();
-    float flowDaaReal = ui.getRealFlowRatePerDaa();
-    float flowMinReal = ui.getRealFlowRatePerMin();
-    int tankLevel = ui.getTankLevel();
-    float areaDone = ui.getAreaCompleted();          // daa
-    int duration = ui.getTaskDuration();            // seconds
-    float consumed = ui.getLiquidConsumed();         // liters
+    float flowDaaSet = services->systemContext->getLeftChannel().getTargetFlowRatePerDaa();
+    float flowMinSet = services->systemContext->getLeftChannel().getTargetFlowRatePerMin();
+    float flowDaaReal = services->systemContext->getLeftChannel().getRealFlowRatePerDaa();
+    float flowMinReal = services->systemContext->getLeftChannel().getRealFlowRatePerMin();
+    int tankLevel = services->systemContext->getTankLevel();
+    float areaDone = services->systemContext->getAreaCompleted();          // daa
+    int duration = services->systemContext->getTaskDuration();            // seconds
+    float consumed = services->systemContext->getLiquidConsumed();         // liters
 
     snprintf(jsonBuf, sizeof(jsonBuf),
         "{\n"
@@ -163,13 +164,13 @@ void handlerGetTaskInfo(const ParsedInstruction& instr) {
     );
 
     Serial.println(jsonBuf);
-    bleServer.notify(jsonBuf);
+    services->bleServer->notify(jsonBuf);
 }
 
 void handlerReportPIParams(const ParsedInstruction& instr) {
     char jsonBuf[512];
-    float piKp = pi1.getPIKp();
-    float piKi = pi1.getPIKi();
+    float piKp = services->pi1->getPIKp();
+    float piKi = services->pi1->getPIKi();
 
     snprintf(jsonBuf, sizeof(jsonBuf),
         "{\n"
@@ -182,64 +183,64 @@ void handlerReportPIParams(const ParsedInstruction& instr) {
     );
 
     Serial.println(jsonBuf);
-    bleServer.notify(jsonBuf);
+    services->bleServer->notify(jsonBuf);
 }
 
 void handlerStartNewTask(const ParsedInstruction& instr) {
-    float ftemp = ui.restoreSingleParam("TankLevel", DEFAULT_TANK_INITIAL_LEVEL);
-    ui.setTankLevel(ftemp);
+    float ftemp = services->prefs->getFloat(PrefKey::KEY_TANK_LEVEL, DEFAULT_TANK_INITIAL_LEVEL);
+    services->systemContext->setTankLevel(ftemp);
 
-    ui.clearTaskDuration();
-    ui.clearLiquidConsumed();
-    ui.clearAreaCompleted();
-    ui.clearDistanceTaken();
-    ui.clearAllErrors();
+    services->systemContext->clearTaskDuration();
+    services->systemContext->clearLiquidConsumed();
+    services->systemContext->clearAreaCompleted();
+    services->systemContext->clearDistanceTaken();
+    services->systemContext->getLeftChannel().clearAllErrors();
 
-    ui.setTaskState(UserTaskState::Started);
+    services->systemContext->getLeftChannel().setTaskState(UserTaskState::Started);
 }
 
 void handlerPauseTask(const ParsedInstruction& instr) {
-    ui.setTaskState(UserTaskState::Paused);
+    services->systemContext->getLeftChannel().setTaskState(UserTaskState::Paused);
 }
 
 void handlerResumeTask(const ParsedInstruction& instr) {
-    ui.setTaskState(UserTaskState::Resuming);
+    services->systemContext->getLeftChannel().setTaskState(UserTaskState::Resuming);
 }
 
 void handlerEndTask(const ParsedInstruction& instr) {
-    ui.setTaskState(UserTaskState::Stopped);
+    services->systemContext->getLeftChannel().setTaskState(UserTaskState::Stopped);
 }
 
 void handlerSetInWorkZone(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::INT) {
-        ui.setClientInWorkZone(instr.postParam.i > 0);
+        services->systemContext->setClientInWorkZone(instr.postParam.i > 0);
     }
 
-    if (ui.isClientInWorkZone()) {
+    if (services->systemContext->isClientInWorkZone()) {
         handlerGetTaskInfo(instr);
     }
 }
 
 void handlerSetTargetFlowRatePerDaa(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
-        ui.setTargetFlowRatePerDaa(instr.postParam.f);
-        ui.setTargetFlowRatePerMin(0.0f);
-        ui.saveSingleParam("flowRateDaa", ui.getTargetFlowRatePerMin());
-        ui.saveSingleParam("flowRateMin", ui.getTargetFlowRatePerDaa());
+        services->systemContext->getLeftChannel().setTargetFlowRatePerDaa(instr.postParam.f);
+        services->systemContext->getLeftChannel().setTargetFlowRatePerMin(0.0f);
+        services->prefs->save(PrefKey::KEY_LEFT_RATE_DAA, services->systemContext->getLeftChannel().getTargetFlowRatePerMin());
+        services->prefs->save(PrefKey::KEY_LEFT_RATE_MIN, services->systemContext->getLeftChannel().getTargetFlowRatePerDaa());
     }
 
-    bleServer.notifyValue(CMD_SET_TARGET_FLOW_RATE_DAA, ui.getTargetFlowRatePerDaa());
+    services->bleServer->notifyValue(CMD_SET_TARGET_FLOW_RATE_DAA, services->systemContext->getLeftChannel().getTargetFlowRatePerDaa());
 }
 
 void handlerSetTargetFlowRatePerMin(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
-        ui.setTargetFlowRatePerMin(instr.postParam.f);
-        ui.setTargetFlowRatePerDaa(0.0f);
-        ui.saveSingleParam("flowRateDaa", ui.getTargetFlowRatePerMin());
-        ui.saveSingleParam("flowRateMin", ui.getTargetFlowRatePerDaa());
+        services->systemContext->getLeftChannel().setTargetFlowRatePerMin(instr.postParam.f);
+        services->systemContext->getLeftChannel().setTargetFlowRatePerDaa(0.0f);
+        services->prefs->save(PrefKey::KEY_LEFT_RATE_DAA, services->systemContext->getLeftChannel().getTargetFlowRatePerMin());
+        services->prefs->save(PrefKey::KEY_LEFT_RATE_MIN, services->systemContext->getLeftChannel().getTargetFlowRatePerDaa());
     }
 
-    bleServer.notifyValue(CMD_SET_TARGET_FLOW_RATE_MIN, ui.getTargetFlowRatePerMin());
+    services->bleServer->notifyValue(CMD_SET_TARGET_FLOW_RATE_MIN, services->systemContext->getLeftChannel().getTargetFlowRatePerMin());
 }
 
 void handlerSetMeasuredWeight(const ParsedInstruction& instr) {
@@ -248,50 +249,50 @@ void handlerSetMeasuredWeight(const ParsedInstruction& instr) {
 
 void handlerSetSpeedSource(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::STRING) {
-        ui.setSpeedSource(instr.postParamStr);
-        ui.saveSingleParam("SpeedSource", ui.getSpeedSource());
+        services->systemContext->setSpeedSource(instr.postParamStr);
+        services->prefs->save(PrefKey::KEY_SPEED_SRC, services->systemContext->getSpeedSource());
     }
-    bleServer.notifyString(CMD_SET_SPEED_SOURCE, ui.getSpeedSource());
+    services->bleServer->notifyString(CMD_SET_SPEED_SOURCE, services->systemContext->getSpeedSource());
 }
 
 void handlerSetMinWorkingSpeed(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
-        ui.setMinWorkingSpeed(instr.postParam.f);
-        ui.saveSingleParam("MinSpeed", ui.getMinWorkingSpeed());
+        services->systemContext->setMinWorkingSpeed(instr.postParam.f);
+        services->prefs->save(PrefKey::KEY_MIN_SPEED, services->systemContext->getMinWorkingSpeed());
     }
-    bleServer.notifyValue(CMD_SET_MIN_WORKING_SPEED, ui.getMinWorkingSpeed());
+    services->bleServer->notifyValue(CMD_SET_MIN_WORKING_SPEED, services->systemContext->getMinWorkingSpeed());
 }
 
 void handlerSetSimSpeed(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
-        ui.setSimSpeed(instr.postParam.f);
-        ui.saveSingleParam("SimSpeed", ui.getSimSpeed());
+        services->systemContext->setSimSpeed(instr.postParam.f);
+        services->prefs->save(PrefKey::KEY_SIM_SPEED, services->systemContext->getSimSpeed());
     }
-    bleServer.notifyValue(CMD_SET_SIM_SPEED, ui.getSimSpeed());
+    services->bleServer->notifyValue(CMD_SET_SIM_SPEED, services->systemContext->getSimSpeed());
 }
 
 void handlerSetTankLevel(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::INT) {
-        ui.setTankLevel(instr.postParam.i);
-        ui.saveSingleParam("TankLevel", ui.getTankLevel());
+        services->systemContext->setTankLevel(instr.postParam.i);
+        services->prefs->save(PrefKey::KEY_TANK_LEVEL, services->systemContext->getTankLevel());
     }
-    bleServer.notifyValue(CMD_SET_TANK_LEVEL, ui.getTankLevel());
+    services->bleServer->notifyValue(CMD_SET_TANK_LEVEL, services->systemContext->getTankLevel());
 }
 
 void handlerSetAutoRefreshPeriod(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::INT) {
-        ui.setAutoRefreshPeriod(instr.postParam.i);
-        ui.saveSingleParam("AutoRefresh", ui.getAutoRefreshPeriod());
+        services->systemContext->setAutoRefreshPeriod(instr.postParam.i);
+        services->prefs->save(PrefKey::KEY_REFRESH, services->systemContext->getAutoRefreshPeriod());
     }
-    bleServer.notifyValue(CMD_SET_AUTO_REFRESH_PERIOD, ui.getAutoRefreshPeriod());
+    services->bleServer->notifyValue(CMD_SET_AUTO_REFRESH_PERIOD, services->systemContext->getAutoRefreshPeriod());
 }
 
 void handlerSetHeartBeatPeriod(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::INT) {
-        ui.setHeartBeatPeriod(instr.postParam.i);
-        ui.saveSingleParam("HeartBeat", ui.getHeartBeatPeriod());
+        services->systemContext->setHeartBeatPeriod(instr.postParam.i);
+        services->prefs->save(PrefKey::KEY_HEARTBEAT, services->systemContext->getHeartBeatPeriod());
     }
-    bleServer.notifyValue(CMD_SET_HEARTBEAT_PERIOD, ui.getHeartBeatPeriod());
+    services->bleServer->notifyValue(CMD_SET_HEARTBEAT_PERIOD, services->systemContext->getHeartBeatPeriod());
 }
 
 void handlerGetErrorInfo(const ParsedInstruction& instr) {
@@ -300,20 +301,20 @@ void handlerGetErrorInfo(const ParsedInstruction& instr) {
 
 void handlerSetPIDKp(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
-        pi1.setPIKp(instr.postParam.f);
-        pi2.setPIKp(instr.postParam.f);
-        ui.saveSingleParam("PIKp", pi1.getPIKp());
+        services->pi1->setPIKp(instr.postParam.f);
+        services->pi2->setPIKp(instr.postParam.f);
+        services->prefs->save(PrefKey::KEY_PI_KP, services->pi1->getPIKp());
     }
-    bleServer.notifyValue(CMD_SET_PI_KP, pi1.getPIKp());
+    services->bleServer->notifyValue(CMD_SET_PI_KP, services->pi1->getPIKp());
 }
 
 void handlerSetPIDKi(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::FLOAT) {
-        pi1.setPIKi(instr.postParam.f);
-        pi2.setPIKi(instr.postParam.f);
-        ui.saveSingleParam("PIKi", pi1.getPIKi());
+        services->pi1->setPIKi(instr.postParam.f);
+        services->pi2->setPIKi(instr.postParam.f);
+        services->prefs->save(PrefKey::KEY_PI_KI, services->pi1->getPIKi());
     }
-    bleServer.notifyValue(CMD_SET_PI_KI, pi1.getPIKi());
+    services->bleServer->notifyValue(CMD_SET_PI_KI, services->pi1->getPIKi());
 }
 
 void handlerReportUserParams(const ParsedInstruction& instr) {

@@ -2,6 +2,9 @@
 #define COMMAND_HANDLER_H
 
 #include "BLECommandParser.h"
+#include "AppServices.h"
+
+void CommandHandler_setServices(AppServices* s);
 
 void handlerSetBLEDeviceName(const ParsedInstruction& instr);
 void handlerGetDeviceInfo(const ParsedInstruction& instr);

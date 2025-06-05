@@ -2,13 +2,9 @@
 
 #include <stdint.h>
 
-#define DEFAULT_KP_VALUE        25.0f
-#define DEFAULT_KI_VALUE        4.0f
-
 class PIController {
 public:
     PIController(float Kp, float Ki, float outputMin, float outputMax);
-    void begin();
     float getPIKp(void) {return _Kp; }
     float getPIKi(void) {return _Ki; }
     void setPIKp(float value) { _Kp = value; }
