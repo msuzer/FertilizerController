@@ -30,7 +30,7 @@ enum class UserTaskState {
 
 class DispenserChannel {
 public:
-    DispenserChannel();
+    DispenserChannel(String name = "", SystemContext* ctx) : channelName(name), context(ctx) {}
 
     // Setters
     bool setTaskState(UserTaskState state);
@@ -67,13 +67,19 @@ public:
     const char* getTaskStateName() const;
     const char* taskStateToString(UserTaskState state) const;
 
+    void checkLowSpeedState();
+
 private:
+    String channelName;
+    SystemContext* context = nullptr;
+
     float targetFlowRatePerDaa = 0.0f;
     float targetFlowRatePerMin = 0.0f;
     float realFlowRatePerDaa = 0.0f;
     float realFlowRatePerMin = 0.0f;
     float flowCoeff = 1.0f;
 
+    bool lowSpeedFlag = false;
     UserTaskState taskState = UserTaskState::Stopped;
     uint32_t errorFlags = NO_ERROR;
 };

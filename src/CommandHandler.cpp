@@ -6,6 +6,7 @@
 #include "GPSProvider.h"
 #include "PIController.h"
 #include "SystemPreferences.h"
+#include "TaskController.h"
 
 static constexpr const char* CMD_SET_BLE_DEVICE_NAME        = "setBLEDevName";
 static constexpr const char* CMD_GET_DEVICE_INFO            = "getDeviceInfo";
@@ -142,9 +143,9 @@ void handlerGetTaskInfo(const ParsedInstruction& instr) {
     float flowDaaReal = services->systemContext->getLeftChannel().getRealFlowRatePerDaa();
     float flowMinReal = services->systemContext->getLeftChannel().getRealFlowRatePerMin();
     int tankLevel = services->systemContext->getTankLevel();
-    float areaDone = services->systemContext->getAreaCompleted();          // daa
-    int duration = services->systemContext->getTaskDuration();            // seconds
-    float consumed = services->systemContext->getLiquidConsumed();         // liters
+    float areaDone = services->taskController->getAreaCompleted();          // daa
+    int duration = services->taskController->getTaskDuration();            // seconds
+    float consumed = services->taskController->getLiquidConsumed();         // liters
 
     snprintf(jsonBuf, sizeof(jsonBuf),
         "{\n"
@@ -190,10 +191,10 @@ void handlerStartNewTask(const ParsedInstruction& instr) {
     float ftemp = services->prefs->getFloat(PrefKey::KEY_TANK_LEVEL, DEFAULT_TANK_INITIAL_LEVEL);
     services->systemContext->setTankLevel(ftemp);
 
-    services->systemContext->clearTaskDuration();
-    services->systemContext->clearLiquidConsumed();
-    services->systemContext->clearAreaCompleted();
-    services->systemContext->clearDistanceTaken();
+    services->taskController->clearTaskDuration();
+    services->taskController->clearLiquidConsumed();
+    services->taskController->clearAreaCompleted();
+    services->taskController->clearDistanceTaken();
     services->systemContext->getLeftChannel().clearAllErrors();
 
     services->systemContext->getLeftChannel().setTaskState(UserTaskState::Started);
@@ -213,10 +214,10 @@ void handlerEndTask(const ParsedInstruction& instr) {
 
 void handlerSetInWorkZone(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::INT) {
-        services->systemContext->setClientInWorkZone(instr.postParam.i > 0);
+        services->taskController->setClientInWorkZone(instr.postParam.i > 0);
     }
 
-    if (services->systemContext->isClientInWorkZone()) {
+    if (services->taskController->isClientInWorkZone()) {
         handlerGetTaskInfo(instr);
     }
 }

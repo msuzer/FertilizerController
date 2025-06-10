@@ -1,8 +1,6 @@
 #include "DispenserChannel.h"
 #include "Arduino.h"
 
-DispenserChannel::DispenserChannel() {}
-
 bool DispenserChannel::setTaskState(UserTaskState state) {
     bool validOp = false;
 
@@ -42,4 +40,27 @@ const char* DispenserChannel::taskStateToString(UserTaskState state) const {
 
 const char* DispenserChannel::getTaskStateName() const {
     return taskStateToString(taskState);
+}
+
+void DispenserChannel::checkLowSpeedState() {
+    if (getTargetFlowRatePerDaa() > 0.0f) {
+        if (context->getGroundSpeed() < context->getMinWorkingSpeed()) {
+            if (context->getMinWorkingSpeed() > 0) {
+                if (isTaskActive()) {
+                    lowSpeedFlag = true;
+                    setTaskState(UserTaskState::Paused);
+                    printf("%s Channel Task Paused due to Low Speed\n", channelName);
+                }
+            }
+        } else {
+            if (lowSpeedFlag) {
+                if (isTaskPaused()) {
+                    printf("Resuming %s Channel Task\n", channelName);
+                    lowSpeedFlag = false;
+                    // Optional: channel.setTaskState(UserTaskState::Resuming);
+                    setTaskState(UserTaskState::Resuming);
+                }
+            }
+        }
+    }
 }

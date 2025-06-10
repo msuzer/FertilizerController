@@ -6,7 +6,7 @@ PIController::PIController(float Kp, float Ki, float outputMin, float outputMax)
 }
 
 float PIController::compute(float setpoint, float measurement, float dt) {
-    float error = setpoint - measurement;
+    error = setpoint - measurement;
 
     // Update integral
     _integral += error * dt;
@@ -21,15 +21,29 @@ float PIController::compute(float setpoint, float measurement, float dt) {
         }
     }
 
-    float output = _Kp * error + _Ki * _integral;
+    controlSignal = _Kp * error + _Ki * _integral;
 
     // Clamp output
-    if (output > _outputMax) output = _outputMax;
-    if (output < _outputMin) output = _outputMin;
+    if (controlSignal > _outputMax) controlSignal = _outputMax;
+    if (controlSignal < _outputMin) controlSignal = _outputMin;
 
-    return output;
+    return controlSignal;
 }
 
 void PIController::reset() {
     _integral = 0.0f;
+    error = 0.0f;
+    controlSignal = 0.0f;
 }
+
+bool PIController::isControlSignalChanged(void) {
+    static int oldSignal = 0;
+  
+    if (oldSignal != controlSignal) {
+      oldSignal = controlSignal;
+      return true;
+    }
+  
+    return false;
+  }
+  

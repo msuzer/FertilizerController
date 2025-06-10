@@ -1,4 +1,3 @@
-// SystemContext.cpp (renamed from UserInterface.cpp)
 #include "SystemContext.h"
 #include "BLETextServer.h"
 #include "TinyGPSPlus.h"
@@ -35,4 +34,26 @@ String SystemContext::readBLEMAC() {
 String SystemContext::readDS18B20ID() {
     auto& sensor = DS18B20Sensor::getInstance();
     return sensor.isReady() ? sensor.getSensorID() : "DS18B20 Not Found";
+}
+
+// BLE Callback Implementations
+
+void SystemContext::onBLEConnected() {
+    printf("BLE Connected\n");
+    // Optionally update some state, flags, LED, etc.
+}
+
+void SystemContext::onBLEDisconnected() {
+    printf("BLE Disconnected\n");
+    // Optionally update some state, flags, LED, etc.
+}
+
+void SystemContext::onBLEWrite(const String& characteristic, const String& value) {
+    printf("BLE Write - Characteristic: %s, Value: %s\n", characteristic.c_str(), value.c_str());
+    // Optionally process BLE write commands
+}
+
+void SystemContext::onBLERead(const String& characteristic) {
+    printf("BLE Read - Characteristic: %s\n", characteristic.c_str());
+    // Optionally respond to BLE read requests
 }
