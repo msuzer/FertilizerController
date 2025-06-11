@@ -1,5 +1,8 @@
 #include "DispenserChannel.h"
-#include "Arduino.h"
+#include "gps/GPSProvider.h"
+#include "core/SystemContext.h"
+
+AppServices* DispenserChannel::services = nullptr;
 
 bool DispenserChannel::setTaskState(UserTaskState state) {
     bool validOp = false;
@@ -43,6 +46,7 @@ const char* DispenserChannel::getTaskStateName() const {
 }
 
 void DispenserChannel::checkLowSpeedState() {
+  SystemContext* context = services->systemContext;
     if (getTargetFlowRatePerDaa() > 0.0f) {
         if (context->getGroundSpeed() < context->getMinWorkingSpeed()) {
             if (context->getMinWorkingSpeed() > 0) {
@@ -63,4 +67,72 @@ void DispenserChannel::checkLowSpeedState() {
             }
         }
     }
+}
+
+void DispenserChannel::updateChannel(PIController& pic) {
+  SystemContext* context = services->systemContext;
+    float flowRatePerMin = getRealFlowRatePerMin();
+    bool isBoomWidthOK = (getBoomWidth() > 0);
+    bool isSpeedOK = context->isSpeedOK();
+    bool isFlowOK = (flowRatePerMin > 0);
+    const float deltaTime = 1.0f;
+
+    checkLowSpeedState();
+
+    if (isSpeedOK && isBoomWidthOK) {
+      if (isFlowOK) {
+        // Update shared metrics only once per update (safe here — same slice for both channels)
+        float groundSpeed = context->getGroundSpeed(true);
+        float processedAreaPerSec = getProcessedAreaPerSec();
+
+        increaseDistanceTaken(groundSpeed * deltaTime);
+        increaseAreaProcessed(processedAreaPerSec);
+        incrementTaskDuration();
+
+        float slice = flowRatePerMin / 60.0f;
+        context->decreaseTankLevel(slice);
+        increaseLiquidConsumed(slice);
+
+        printf("Ground Speed, Boom Width and Min Flow OK for one channel!\n");
+
+        clearError(INSUFFICIENT_FLOW);
+
+        if (abs(pic.getError()) >= FLOW_ERROR_WARNING_THRESHOLD) {
+          if (++counter >= context->getHeartBeatPeriod()) {
+            setError(FLOW_NOT_SETTLED);
+            counter = 0;
+          }
+        } else {
+          clearError(FLOW_NOT_SETTLED);
+          counter = 0;
+        }
+      } else {
+        counter = 0;
+        setError(INSUFFICIENT_FLOW);
+        clearError(FLOW_NOT_SETTLED);
+      }
+    } else {
+      counter = 0;
+      clearError(INSUFFICIENT_FLOW);
+      clearError(FLOW_NOT_SETTLED);
+    }
+
+    // Tank level check (same for both)
+    if (context->getTankLevel() > 0.0f) {
+      clearError(LIQUID_TANK_EMPTY);
+    } else {
+      setError(LIQUID_TANK_EMPTY);
+    }
+
+    // GPS satellite check (same for both)
+    if (services->gpsProvider->getSatelliteCount() < MIN_SATELLITES_NEEDED) {
+      setError(NO_SATELLITE_CONNECTED);
+    } else {
+      clearError(NO_SATELLITE_CONNECTED);
+    }
+}
+
+float DispenserChannel::getProcessedAreaPerSec() const {
+  SystemContext* context = services->systemContext;
+  return context->getGroundSpeed() * getBoomWidth();
 }

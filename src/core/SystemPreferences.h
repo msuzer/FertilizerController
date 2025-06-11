@@ -1,8 +1,7 @@
 // SystemPreferences.h
 #pragma once
 #include <Preferences.h>
-#include "SystemContext.h"
-#include "AppServices.h"
+#include "core/AppServices.h"
 
 // Default values (copied from UserInterface.h)
 #define DEFAULT_TARGET_RATE_KG_DAA      20.0f

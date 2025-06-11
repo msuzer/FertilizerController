@@ -2,11 +2,10 @@
 #include "CommandHandler.h"
 #include "BLECommandParser.h"
 #include "BLETextServer.h"
-#include "SystemContext.h"
-#include "GPSProvider.h"
-#include "PIController.h"
-#include "SystemPreferences.h"
-#include "TaskController.h"
+#include "core/SystemContext.h"
+#include "gps/GPSProvider.h"
+#include "control/PIController.h"
+#include "core/SystemPreferences.h"
 
 static constexpr const char* CMD_SET_BLE_DEVICE_NAME        = "setBLEDevName";
 static constexpr const char* CMD_GET_DEVICE_INFO            = "getDeviceInfo";
@@ -38,9 +37,11 @@ static constexpr const char* CMD_REPORT_PID_PARAMS          = "reportPIDParams";
 static constexpr const char* CMD_REPORT_USER_PARAMS         = "reportUserParams";
 
 static AppServices* services = nullptr;
+static SystemContext* context = nullptr;
 
 void CommandHandler_setServices(AppServices *s) {
     services = s;
+    context = s->systemContext;
 }
 
 // when adding new commands, consider increasing 'MAX_COMMANDS' in BLECommandParser
@@ -143,9 +144,9 @@ void handlerGetTaskInfo(const ParsedInstruction& instr) {
     float flowDaaReal = services->systemContext->getLeftChannel().getRealFlowRatePerDaa();
     float flowMinReal = services->systemContext->getLeftChannel().getRealFlowRatePerMin();
     int tankLevel = services->systemContext->getTankLevel();
-    float areaDone = services->taskController->getAreaCompleted();          // daa
-    int duration = services->taskController->getTaskDuration();            // seconds
-    float consumed = services->taskController->getLiquidConsumed();         // liters
+    float areaDone = context->getLeftChannel().getAreaCompleted();          // daa
+    int duration = context->getLeftChannel().getTaskDuration();            // seconds
+    float consumed = context->getLeftChannel().getLiquidConsumed();         // liters
 
     snprintf(jsonBuf, sizeof(jsonBuf),
         "{\n"
@@ -191,10 +192,10 @@ void handlerStartNewTask(const ParsedInstruction& instr) {
     float ftemp = services->prefs->getFloat(PrefKey::KEY_TANK_LEVEL, DEFAULT_TANK_INITIAL_LEVEL);
     services->systemContext->setTankLevel(ftemp);
 
-    services->taskController->clearTaskDuration();
-    services->taskController->clearLiquidConsumed();
-    services->taskController->clearAreaCompleted();
-    services->taskController->clearDistanceTaken();
+    context->getLeftChannel().clearTaskDuration();
+    context->getLeftChannel().clearLiquidConsumed();
+    context->getLeftChannel().clearAreaCompleted();
+    context->getLeftChannel().clearDistanceTaken();
     services->systemContext->getLeftChannel().clearAllErrors();
 
     services->systemContext->getLeftChannel().setTaskState(UserTaskState::Started);
@@ -214,10 +215,10 @@ void handlerEndTask(const ParsedInstruction& instr) {
 
 void handlerSetInWorkZone(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::INT) {
-        services->taskController->setClientInWorkZone(instr.postParam.i > 0);
+        context->setClientInWorkZone(instr.postParam.i > 0);
     }
 
-    if (services->taskController->isClientInWorkZone()) {
+    if (context->isClientInWorkZone()) {
         handlerGetTaskInfo(instr);
     }
 }

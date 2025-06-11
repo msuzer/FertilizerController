@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AppServices.h"
+#include "core/AppServices.h"
 
 #define MIN_SATELLITES_NEEDED           4
 #define MAX_HDOP_TOLERATED              25.0f

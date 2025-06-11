@@ -1,12 +1,10 @@
 #include "SystemContext.h"
-#include "BLETextServer.h"
+#include "ble/BLETextServer.h"
 #include "TinyGPSPlus.h"
-#include "CommandHandler.h"
-#include "PIController.h"
-#include "DS18B20Sensor.h"
-#include "SystemPreferences.h"
-
-SystemContext::SystemContext() {}
+#include "ble/CommandHandler.h"
+#include "control/PIController.h"
+#include "io/DS18B20Sensor.h"
+#include "core/SystemPreferences.h"
 
 void SystemContext::begin() {
     espID = readChipUUID();
@@ -34,6 +32,14 @@ String SystemContext::readBLEMAC() {
 String SystemContext::readDS18B20ID() {
     auto& sensor = DS18B20Sensor::getInstance();
     return sensor.isReady() ? sensor.getSensorID() : "DS18B20 Not Found";
+}
+
+float SystemContext::getGroundSpeed(bool useSim) const {
+    if (speedSource == "GPS") {
+        return services->gpsProvider->getSpeed();
+    }
+
+    return simSpeed;
 }
 
 // BLE Callback Implementations

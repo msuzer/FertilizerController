@@ -1,6 +1,7 @@
 // SystemPreferences.cpp
 #include "SystemPreferences.h"
-#include "PIController.h"
+#include "SystemContext.h"
+#include "control/PIController.h"
 
 const char* SystemPreferences::keyNames[KEY_COUNT] = {
     "speedSrc",

@@ -1,18 +1,17 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <TinyGPSPlus.h>
-#include "VNH7070AS.h"
-#include "ADS1115.h"
-#include "CircularBuffer.h"
-#include "PIController.h"
-#include "BLETextServer.h"
-#include "BLECommandParser.h"
-#include "DS18B20Sensor.h"
-#include "AppServices.h"
-#include "SystemContext.h"
-#include "SystemPreferences.h"
-#include "GPSProvider.h"
-#include "TaskController.h"
+#include "io/VNH7070AS.h"
+#include "io/ADS1115.h"
+#include "io/CircularBuffer.h"
+#include "control/PIController.h"
+#include "ble/BLETextServer.h"
+#include "ble/BLECommandParser.h"
+#include "io/DS18B20Sensor.h"
+#include "core/AppServices.h"
+#include "core/SystemContext.h"
+#include "core/SystemPreferences.h"
+#include "gps/GPSProvider.h"
 
 #if CONFIG_IDF_TARGET_ESP32  // ESP32/PICO-D4
 #include "esp32/rom/rtc.h"
@@ -67,7 +66,6 @@ CircularBuffer ch3(buffer3, ADS1115_BUF_SIZE);
 ADS1115 ads1115(Wire);
 
 SystemContext context;
-TaskController taskController(&context);
 SystemPreferences prefs;
 BLETextServer bleServer(DEFAULT_BLE_DEVICE_NAME);
 BLECommandParser parser;
@@ -76,7 +74,7 @@ GPSProvider gpsProvider;
 PIController pi1(DEFAULT_KP_VALUE, DEFAULT_KI_VALUE, -100.0f, 100.0f);
 PIController pi2(DEFAULT_KP_VALUE, DEFAULT_KI_VALUE, -100.0f, 100.0f);
 
-AppServices services(&context, &taskController, &prefs, &bleServer, &parser, &gpsModule, &gpsProvider, &pi1, &pi2);
+AppServices services(&context, &prefs, &bleServer, &parser, &gpsModule, &gpsProvider, &pi1, &pi2);
 
 // Instantiate the drivers
 // PWM write function using ESP32's ledcWrite
@@ -96,76 +94,11 @@ static void taskLoopUpdateCallback(void *p);
 static void controlLoopUpdateCallback(void *p);
 
 static void taskLoopUpdateCallback(void *p) {
-  static int counterLeft = 0;
-  static int counterRight = 0;
   static int counterRefresh = 0;
 
-  taskController.getLeftChannel().checkLowSpeedState();
-  taskController.getRightChannel().checkLowSpeedState();
-
-  // Per-channel flow checks
-  auto updateChannel = [&](DispenserChannel& channel, PIController& pi, int& counter) {
-    float flowRatePerMin = channel.getRealFlowRatePerMin();
-    bool isBoomWidthOK = (taskController.getBoomWidth() > 0);
-    bool isSpeedOK = taskController.isSpeedOK();
-    bool isFlowOK = (flowRatePerMin > 0);
-
-    if (isSpeedOK && isBoomWidthOK) {
-      if (isFlowOK) {
-        // Update shared metrics only once per update (safe here — same slice for both channels)
-        float groundSpeed = taskController.getGroundSpeed(true);
-        float processedAreaPerSec = taskController.getProcessedAreaPerSec();
-
-        taskController.increaseDistanceTaken(groundSpeed);
-        taskController.increaseAreaProcessed(processedAreaPerSec);
-        taskController.incrementTaskDuration();
-
-        float slice = flowRatePerMin / 60.0f;
-        taskController.decreaseTankLevel(slice);
-        taskController.increaseLiquidConsumed(slice);
-
-        printf("Ground Speed, Boom Width and Min Flow OK for one channel!\n");
-
-        channel.clearError(INSUFFICIENT_FLOW);
-
-        if (abs(pi.getError()) >= FLOW_ERROR_WARNING_THRESHOLD) {
-          if (++counter >= context.getHeartBeatPeriod()) {
-            channel.setError(FLOW_NOT_SETTLED);
-            counter = 0;
-          }
-        } else {
-          channel.clearError(FLOW_NOT_SETTLED);
-          counter = 0;
-        }
-      } else {
-        counter = 0;
-        channel.setError(INSUFFICIENT_FLOW);
-        channel.clearError(FLOW_NOT_SETTLED);
-      }
-    } else {
-      counter = 0;
-      channel.clearError(INSUFFICIENT_FLOW);
-      channel.clearError(FLOW_NOT_SETTLED);
-    }
-
-    // Tank level check (same for both)
-    if (taskController.getTankLevel() > 0.0f) {
-      channel.clearError(LIQUID_TANK_EMPTY);
-    } else {
-      channel.setError(LIQUID_TANK_EMPTY);
-    }
-
-    // GPS satellite check (same for both)
-    if (gpsProvider.getSatelliteCount() < MIN_SATELLITES_NEEDED) {
-      channel.setError(NO_SATELLITE_CONNECTED);
-    } else {
-      channel.clearError(NO_SATELLITE_CONNECTED);
-    }
-  };
-
   // Process each channel
-  updateChannel(taskController.getLeftChannel(), pi1, counterLeft);
-  updateChannel(taskController.getRightChannel(), pi2, counterRight);
+  context.getLeftChannel().updateChannel(pi1);
+  context.getLeftChannel().updateChannel(pi2);
 
   // Auto-refresh
   int arPeriod = context.getAutoRefreshPeriod();
@@ -193,8 +126,8 @@ static void controlLoopUpdateCallback(void *p) {
   float current2 = ads1115.rawToCurrent(avgRaw3);
 
   // Target setpoints (user-defined, e.g., from GUI or serial)
-  volatile float target1 = taskController.getLeftChannel().getTargetFlowRatePerDaa();  // Example setpoint
-  volatile float target2 = taskController.getRightChannel().getTargetFlowRatePerDaa();
+  volatile float target1 = context.getLeftChannel().getTargetFlowRatePerDaa();  // Example setpoint
+  volatile float target2 = context.getRightChannel().getTargetFlowRatePerDaa();
 
   float duty1 = pi1.compute(target1, pos1, dt);
   float duty2 = pi2.compute(target2, pos2, dt);
@@ -319,9 +252,10 @@ void setup() {
     die("PCNT Timer Setup Failed!\n");
   }
 
-  gpsProvider.injectServices(&services);
-  prefs.injectServices(&services);
   context.injectServices(&services);
+  DispenserChannel::injectServices(&services);
+  prefs.injectServices(&services);
+  gpsProvider.injectServices(&services);
 
   context.begin();
   

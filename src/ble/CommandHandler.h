@@ -2,7 +2,7 @@
 #define COMMAND_HANDLER_H
 
 #include "BLECommandParser.h"
-#include "AppServices.h"
+#include "core/AppServices.h"
 
 void CommandHandler_setServices(AppServices* s);
 
