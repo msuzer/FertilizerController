@@ -18,7 +18,10 @@
 #include "io/ADS1115.h"
 #include "io/DS18B20Sensor.h"
 
-#define FIRMWARE_VERSION                "04.06.2025"
+// const char* buildDate = __DATE__;
+// const char* buildTime = __TIME__;
+
+#define FIRMWARE_VERSION                __DATE__
 #define DEVICE_VERSION                  "29.05.2025"
 
 class SystemContext {
