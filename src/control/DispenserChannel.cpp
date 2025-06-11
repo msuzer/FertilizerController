@@ -32,6 +32,28 @@ bool DispenserChannel::setTaskState(UserTaskState state)
 
     if (validOp) {
         taskState = state;
+
+        // If transitioning to inactive state, clear relevant error flags
+        if (taskState == UserTaskState::Stopped || taskState == UserTaskState::Paused) {
+            const uint32_t ERRORS_TO_CLEAR =
+                INSUFFICIENT_FLOW |
+                FLOW_NOT_SETTLED |
+                NO_SATELLITE_CONNECTED |
+                INVALID_SATELLITE_INFO |
+                INVALID_GPS_LOCATION |
+                INVALID_GPS_SPEED |
+                INVALID_PARAM_COUNT |
+                MESSAGE_PARSE_ERROR |
+                HARDWARE_ERROR;
+
+            clearError(ERRORS_TO_CLEAR);
+
+            printf("[UI] Cleared relevant error flags due to task state transition to %s\n", getTaskStateName());
+            printf("[UI] Aligning Motor To End\n");
+
+            alignToEnd();
+        }
+
         return true;
     }
 
@@ -77,7 +99,11 @@ void DispenserChannel::checkLowSpeedState() {
     }
 }
 
-void DispenserChannel::updateChannel() {
+void DispenserChannel::updateTaskMetrics() {
+  if (!isTaskActive()) {
+    return;  // Don't update metrics if not active
+  }
+
   SystemParams & params = context->getPrefs().getParams();
   float groundSpeedKMPH = context->getGroundSpeed();
   float groundSpeedMPS = context->getGroundSpeed(true);
@@ -145,4 +171,49 @@ void DispenserChannel::updateChannel() {
 
 float DispenserChannel::getProcessedAreaPerSec() const {
   return context->getGroundSpeed(true) * getBoomWidth();
+}
+
+void DispenserChannel::applyPIControl() {
+  ADS1115& ads1115 = context->getADS1115();
+  float measured = ads1115.readFilteredVoltage(channelIndex);
+  applyPIControl(measured);
+}
+
+void DispenserChannel::applyPIControl(float measured) {
+  if (isTaskActive()) {
+    float target = getTargetFlowRatePerMin();
+    // measured = getKgPerDaaInstantaneous(measured);
+    float signal = piController.compute(target, measured);
+    if (piController.isControlSignalChanged()) {
+      motorDriver.setSpeed(static_cast<int8_t>(signal));
+    }
+  }
+}
+
+void DispenserChannel::alignToEnd(bool forward) {
+  const float TARGET_POS = forward ? forwardLimitVoltage : backwardLimitVoltage;
+  const float TOLERANCE = 0.05f; // Voltage tolerance
+  const int ALIGN_SPEED = forward ? alignSpeed : -alignSpeed; // Fixed motor speed
+
+  ADS1115& ads1115 = context->getADS1115();
+  float pos = ads1115.readFilteredVoltage(channelIndex);
+
+  if (abs(pos - TARGET_POS) > TOLERANCE) {
+      motorDriver.setSpeed(ALIGN_SPEED);
+  } else {
+      motorDriver.setSpeed(0);
+      printf("[%s] Motor aligned to %s end.\n", channelName.c_str(), forward ? "FORWARD" : "BACKWARD");
+  }
+}
+
+const float DispenserChannel::getKgPerDaaInstantaneous(float potVoltage) const {
+    float flowKgPerSec = potVoltage * flowCoeff;
+
+    float areaPerSec = getProcessedAreaPerSec();
+
+    if (areaPerSec > 0.0f) {
+        return (flowKgPerSec / areaPerSec) * 1000.0f;
+    } else {
+        return 0.0f; // avoid division by zero
+    }
 }

@@ -15,8 +15,6 @@ public:
     inline void setContext(SystemContext* ctx) { context = ctx; }
 
     void registerHandlers();
-private:
-    static SystemContext* context;
 
     // Handlers
     static void handlerSetBLEDeviceName(const ParsedInstruction& instr);
@@ -47,6 +45,9 @@ private:
 
     static void handlerReportPIParams(const ParsedInstruction& instr);
     static void handlerReportUserParams(const ParsedInstruction& instr);
+
+private:
+    static SystemContext* context;
 };
 
 #endif // COMMAND_HANDLER_H

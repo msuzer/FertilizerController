@@ -1,4 +1,19 @@
 #include "ADS1115.h"
+#include "io/CircularBuffer.h"
+
+// --- Allocate fixed-size buffers for each ADS1115 channel ---
+constexpr size_t ADS1115_BUF_SIZE = 8;
+
+static int16_t buffer0[ADS1115_BUF_SIZE];
+static int16_t buffer1[ADS1115_BUF_SIZE];
+static int16_t buffer2[ADS1115_BUF_SIZE];
+static int16_t buffer3[ADS1115_BUF_SIZE];
+
+// --- Create CircularBuffer instances for each channel ---
+static CircularBuffer ch0(buffer0, ADS1115_BUF_SIZE);
+static CircularBuffer ch1(buffer1, ADS1115_BUF_SIZE);
+static CircularBuffer ch2(buffer2, ADS1115_BUF_SIZE);
+static CircularBuffer ch3(buffer3, ADS1115_BUF_SIZE);
 
 // Your resistor values for current measurement
 const float Rtop = 4700.0f;   // 4.7k
@@ -41,6 +56,19 @@ void ADS1115::setGain(Gain gain) {
 
 void ADS1115::setDataRate(DataRate rate) {
     _dataRate = rate;
+}
+
+void ADS1115::pushBuffer(uint8_t channel) {
+    int16_t raw = readSingleEnded(channel);
+    if (channel == 0) {
+        ch0.push(raw);
+    } else if (channel == 1) {
+        ch1.push(raw);
+    } else if (channel == 2) {
+        ch2.push(raw);
+    } else if (channel == 3) {
+        ch3.push(raw);
+    }
 }
 
 ADS1115::Gain ADS1115::getGain() const {
@@ -99,6 +127,21 @@ int16_t ADS1115::readDifferential(uint8_t channel1, uint8_t channel2) {
     if (!_configure(mux)) return INT16_MIN;
     delay(10);
     return _readConversionRegister();
+}
+
+int16_t ADS1115::readFiltered(uint8_t channel) {
+    return (channel == 0) ? ch0.average() :
+           (channel == 1) ? ch1.average() :
+           (channel == 2) ? ch2.average() :
+           (channel == 3) ? ch3.average() : INT16_MIN;
+}
+
+float ADS1115::readFilteredVoltage(uint8_t channel) {
+    return rawToVoltage(readFiltered(channel));
+}
+
+float ADS1115::readFilteredCurrent(uint8_t channel) {
+    return rawToCurrent(readFiltered(channel));
 }
 
 float ADS1115::readVoltageSingleEnded(uint8_t channel) {

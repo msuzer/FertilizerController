@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include "core/SystemPreferences.h"
 
+#define CONTROL_LOOP_UPDATE_FREQUENCY_HZ      10 // Control loop frequency in Hz
+
 class PIController {
 public:
     PIController(float Kp = DEFAULT_KP_VALUE, float Ki = DEFAULT_KI_VALUE, float outputMin = -100.0f, float outputMax = 100.0f)
@@ -17,9 +19,10 @@ public:
     int getControlSignal(void) {return controlSignal; }
 
     void setParams(float Kp, float Ki) {_Kp = Kp; _Ki = Ki; }
-    float compute(float setpoint, float measurement, float dt); // dt in seconds
+    float compute(float setpoint, float measurement);
     void reset(); // Reset integral term
 private:
+    float dt = 1.0f / CONTROL_LOOP_UPDATE_FREQUENCY_HZ;
     float _Kp, _Ki;
     float controlSignal, _outputMin, _outputMax;
     float error, _integral;

@@ -3,7 +3,6 @@
 #include <TinyGPSPlus.h>
 #include "io/VNH7070AS.h"
 #include "io/ADS1115.h"
-#include "io/CircularBuffer.h"
 #include "control/PIController.h"
 #include "ble/BLETextServer.h"
 #include "ble/BLECommandParser.h"
@@ -20,46 +19,30 @@
 
 // === User-Defined Timer Frequency ===
 #define TASK_LOOP_UPDATE_FREQUENCY_HZ         1  // Task loop frequency in Hz
-#define CONTROL_LOOP_UPDATE_FREQUENCY_HZ      10 // Control loop frequency in Hz
 #define TIMER_PERIOD_US(Freq)                 (1000000 / Freq)  // Period in microseconds
 
-// --- Allocate fixed-size buffers for each ADS1115 channel ---
-constexpr size_t ADS1115_BUF_SIZE = 8;
-
-int16_t buffer0[ADS1115_BUF_SIZE];
-int16_t buffer1[ADS1115_BUF_SIZE];
-int16_t buffer2[ADS1115_BUF_SIZE];
-int16_t buffer3[ADS1115_BUF_SIZE];
-
-// --- Create CircularBuffer instances for each channel ---
-CircularBuffer ch0(buffer0, ADS1115_BUF_SIZE);
-CircularBuffer ch1(buffer1, ADS1115_BUF_SIZE);
-CircularBuffer ch2(buffer2, ADS1115_BUF_SIZE);
-CircularBuffer ch3(buffer3, ADS1115_BUF_SIZE);
-
 // --- Create Services ---
-
 SystemContext context;
-
-// Instantiate the drivers
-// PWM write function using ESP32's ledcWrite
 
 // === Timer Setup ===
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
-bool timerAlarmOccurred = false;
+bool notifyDeferredTasks = false;
 static bool timeToRefresh = false;
 
 void die(const char* message);
 void printResetReason(int reason);
 static void taskLoopUpdateCallback(void *p);
 static void controlLoopUpdateCallback(void *p);
+void printRealTimeData(void);
+static void printErrorCode(int errorCode);
 
+// periodic callback on 1 second interval
 static void taskLoopUpdateCallback(void *p) {
   static int counterRefresh = 0;
 
   // Process each channel
-  context.getLeftChannel().updateChannel();
-  context.getLeftChannel().updateChannel();
+  context.getLeftChannel().updateTaskMetrics();
+  context.getRightChannel().updateTaskMetrics();
 
   // Auto-refresh
   int arPeriod = context.getPrefs().getParams().autoRefreshPeriod;
@@ -69,38 +52,14 @@ static void taskLoopUpdateCallback(void *p) {
   }
 }
 
+// periodic callback 10 Hz frequency
 static void controlLoopUpdateCallback(void *p) {
   portENTER_CRITICAL_ISR(&timerMux);
 
-  constexpr float dt = 1.0f / CONTROL_LOOP_UPDATE_FREQUENCY_HZ;
+  context.getLeftChannel().applyPIControl();
+  context.getRightChannel().applyPIControl();
 
-  // Read feedback (pot values)
-  // --- Compute averages and convert to voltage ---
-  ADS1115& ads1115 = context.getADS1115();
-  float pos1 = ads1115.rawToVoltage(ch0.average());
-  float pos2 = ads1115.rawToVoltage(ch1.average());
-  float current1 = ads1115.rawToCurrent(ch2.average());
-  float current2 = ads1115.rawToCurrent(ch3.average());
-
-  // Target setpoints (user-defined, e.g., from GUI or serial)
-  volatile float target1 = context.getLeftChannel().getTargetFlowRatePerMin();  // Example setpoint
-  volatile float target2 = context.getRightChannel().getTargetFlowRatePerMin();
-
-  PIController& pi1 = context.getLeftChannel().getPIController();
-  PIController& pi2 = context.getRightChannel().getPIController();
-  float duty1 = pi1.compute(target1, pos1, dt);
-  float duty2 = pi2.compute(target2, pos2, dt);
-
-  VNH7070AS& motor1 = context.getLeftChannel().getMotor();
-  VNH7070AS& motor2 = context.getRightChannel().getMotor();
-
-  motor1.setSpeed(static_cast<int8_t>(duty1));
-  motor2.setSpeed(static_cast<int8_t>(duty2));
-
-  motor1.checkStuck(current1);
-  motor2.checkStuck(current2);
-
-  timerAlarmOccurred = true;
+  notifyDeferredTasks = true;
 
   portEXIT_CRITICAL_ISR(&timerMux);
 }
@@ -142,15 +101,6 @@ void setup() {
 
   context.writeRGBLEDs(LOW, HIGH, LOW);
 
-  if (DS18B20Sensor::getInstance().init(DS18B20_DataPin)) {
-      Serial.println("DS18B20 found!");
-      float temp = DS18B20Sensor::getInstance().getTemperatureC();
-      String id = DS18B20Sensor::getInstance().getSensorID();
-      Serial.printf("Sensor ID: %s | Temperature: %.2f °C\n", id.c_str(), temp);
-  } else {
-      Serial.println("DS18B20 not found.");
-  }
-
   printf("CPU0 reset reason: ");
   printResetReason(rtc_get_reset_reason(0));
 
@@ -179,6 +129,16 @@ void setup() {
 
   context.init();
   
+  DS18B20Sensor& tempSensor = context.getTempSensor();
+  if (tempSensor.isReady()) {
+      Serial.println("DS18B20 found!");
+      float temp = tempSensor.getTemperatureC();
+      String id = tempSensor.getSensorID();
+      Serial.printf("Sensor ID: %s | Temperature: %.2f °C\n", id.c_str(), temp);
+  } else {
+      Serial.println("DS18B20 not found.");
+  }
+
   BLETextServer& bleServer = context.getBLETextServer();
 
   bleServer.start();
@@ -191,59 +151,105 @@ void loop() {
   VNH7070AS& motor2 = context.getRightChannel().getMotor();
   TinyGPSPlus& gpsModule = context.getGPSModule();
 
-  if (timerAlarmOccurred) {
-    timerAlarmOccurred = false;
+  if (notifyDeferredTasks) {
+    notifyDeferredTasks = false;
 
-    // --- Read and store raw ADC data ---
-    int16_t raw0 = ads1115.readSingleEnded(0);
-    int16_t raw1 = ads1115.readSingleEnded(1);
-    int16_t raw2 = ads1115.readSingleEnded(2);
-    int16_t raw3 = ads1115.readSingleEnded(3);
-
-    ch0.push(raw0);
-    ch1.push(raw1);
-    ch2.push(raw2);
-    ch3.push(raw3);
-  }
+    ads1115.pushBuffer(ADS1115Channels::CH0);
+    ads1115.pushBuffer(ADS1115Channels::CH1);
+    ads1115.pushBuffer(ADS1115Channels::CH2);
+    ads1115.pushBuffer(ADS1115Channels::CH3);
 
     // --- Compute averages and convert to voltage ---
-    int16_t avgRaw0 = ch0.average();
-    int16_t avgRaw1 = ch1.average();
-    int16_t avgRaw2 = ch2.average();
-    int16_t avgRaw3 = ch3.average();
-
-    float avgVoltage0 = ads1115.rawToVoltage(avgRaw0);
-    float avgVoltage1 = ads1115.rawToVoltage(avgRaw1);
-
-    float current1 = ads1115.rawToCurrent(avgRaw2);
-    float current2 = ads1115.rawToCurrent(avgRaw3);
-
+    float pos1 = ads1115.readFilteredVoltage(ADS1115Channels::CH0);
+    float pos2 = ads1115.readFilteredVoltage(ADS1115Channels::CH1);
+    float current1 = ads1115.readFilteredCurrent(ADS1115Channels::CH2);
+    float current2 = ads1115.readFilteredCurrent(ADS1115Channels::CH3);
+  
     // --- Print results ---
     Serial.printf("Pot1: %.4f V | Pot2: %.4f V | Curr1: %.4f V | Curr2: %.4f V\n",
-                   avgVoltage0, avgVoltage1, current1, current2);
+                   pos1, pos2, current1, current2);
 
-    if (motor1.isStuck()) {
+    if (motor1.checkStuck(current1)) {
         Serial.println("MOTOR 1 STUCK!");
+        context.getLeftChannel().setError(MOTOR_STUCK);
+        context.getLeftChannel().setTaskState(UserTaskState::Paused);
     }
 
-    if (motor2.isStuck()) {
+    if (motor2.checkStuck(current2)) {
         Serial.println("MOTOR 2 STUCK!");
+        context.getRightChannel().setError(MOTOR_STUCK);
+        context.getRightChannel().setTaskState(UserTaskState::Paused);
     }
+  }
 
     while (Serial1.available()) {
       gpsModule.encode(Serial1.read());
     }
 
-    const char* msg = bleServer.getReceived();
-    if (msg) {
-        Serial.printf("Buffered: %s\n", msg);
+    if (timeToRefresh) {
+      timeToRefresh = false;
+      if (context.getLeftChannel().isClientInWorkZone()) {
+        CommandHandler::getInstance().handlerGetTaskInfo({}); // pass empty ParsedInstruction
+      }
+      printRealTimeData();
     }
+}
 
-    static uint32_t last = 0;
-    if (millis() - last > 5000) {
-        last = millis();
-        bleServer.notifyFormatted("Status update at %lu ms", last);
-    }
+void printRealTimeData(void) {
+  printf("[LOG] Time: %lu | TargetFlow: %.2f | RealFlow: %.2f | Error: %.2f | CtrlSig: %d | "
+    "Distance: %.2f | AreaPerSec: %.2f | Liquid: %.2f\n",
+     millis(),
+     0,
+     0,
+     0,
+     0,
+     0,
+     0,
+     0
+   );
+
+   context.getGPSProvider().printGPSData();
+}
+
+static void printErrorCode(int errorCode) {
+  printf("Error Code: %08X Message: ", errorCode);
+
+  if (errorCode & LIQUID_TANK_EMPTY) {
+    printf("Liquid Tank Empty!\n");
+  }
+  if (errorCode & INSUFFICIENT_FLOW) {
+    printf("Insufficient Flow!\n");
+  }
+  if (errorCode & FLOW_NOT_SETTLED) {
+    printf("Flow Not Settled!\n");
+  }
+  if (errorCode & BATTERY_LOW) {
+    printf("Battery Low!\n");
+  }
+  if (errorCode & NO_SATELLITE_CONNECTED) {
+    printf("No Satellite Connected!\n");
+  }
+  if (errorCode & INVALID_SATELLITE_INFO) {
+    printf("Invalid Satellite Info!\n");
+  }
+  if (errorCode & INVALID_GPS_LOCATION) {
+    printf("Invalid GPS Location!\n");
+  }
+  if (errorCode & INVALID_GPS_SPEED) {
+    printf("Invalid GPS Speed!\n");
+  }
+  if (errorCode & INVALID_PARAM_COUNT) {
+    printf("Invalid Param Count!\n");
+  }
+  if (errorCode & MESSAGE_PARSE_ERROR) {
+    printf("Message Parse Error!\n");
+  }
+  if (errorCode & HARDWARE_ERROR) {
+    printf("Hardware Error!\n");
+  }
+  if (errorCode == 0) {
+    printf("No Error!\n");
+  }
 }
 
 // This function is called by the Arduino core for printf() support

@@ -1,6 +1,6 @@
 #include "PIController.h"
 
-float PIController::compute(float setpoint, float measurement, float dt) {
+float PIController::compute(float setpoint, float measurement) {
     error = setpoint - measurement;
 
     // Update integral

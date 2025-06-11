@@ -5,6 +5,7 @@
 #include "PIController.h"
 #include "io/VNH7070AS.h"
 #include "io/IOConfig.h"
+#include "io/ADS1115.h"
 #include "core/SystemPreferences.h"
 
 class SystemContext; // Forward declaration
@@ -20,8 +21,8 @@ enum UserErrorCodes {
     LIQUID_TANK_EMPTY = 1 << 0,
     INSUFFICIENT_FLOW = 1 << 1,
     FLOW_NOT_SETTLED = 1 << 2,
-    MOTOR1_STUCK = 1 << 3,
-    MOTOR2_STUCK = 1 << 4,
+    MOTOR_STUCK = 1 << 3,
+    DUMMY_ERROR = 1 << 4,
     BATTERY_LOW = 1 << 5,
     NO_SATELLITE_CONNECTED = 1 << 6,
     INVALID_SATELLITE_INFO = 1 << 7,
@@ -41,7 +42,7 @@ enum class UserTaskState {
 
 class DispenserChannel {
 public:
-    DispenserChannel(String name = "") : channelName(name) {}
+    DispenserChannel(String name = "") : channelName(name) {channelIndex = (name == "Left") ? ADS1115Channels::CH0 : ADS1115Channels::CH1; }
     void init(SystemContext* ctx, const VNH7070ASPins& motorPins);
 
     // Setters
@@ -90,8 +91,12 @@ public:
     const char* taskStateToString(UserTaskState state) const;
 
     void checkLowSpeedState();
-    void updateChannel();
+    void updateTaskMetrics();
     float getProcessedAreaPerSec() const;
+    void applyPIControl();
+    void applyPIControl(float measured);
+    void alignToEnd(bool forward = true);
+    const float getKgPerDaaInstantaneous(float potVoltage) const;
 
     // Task metrics per channel
     inline void incrementTaskDuration() { taskDuration++; }
@@ -115,8 +120,12 @@ public:
     inline static void setTankLevel(float level) { tankLevel = level; }
     inline static void setClientInWorkZone(bool inWorkZone) { clientInWorkZone = inWorkZone; }
 
+    void setForwardLimitVoltage(float v) { forwardLimitVoltage = v; }
+    void setBackwardLimitVoltage(float v) { backwardLimitVoltage = v; }
+    void setAlignSpeed(int speed) { alignSpeed = speed; }
 private:
     String channelName;
+    int channelIndex = -1; // Index in the context channels array
     static SystemContext* context;
 
     PIController piController;
@@ -142,4 +151,8 @@ private:
     static bool clientInWorkZone;
 
     float boomWidth = 0.0f; // in meters, used for area calculations
+
+    float forwardLimitVoltage = 3.0f;  // e.g. 2.50V
+    float backwardLimitVoltage = 0.15f; // e.g. 0.50V
+    int alignSpeed = 50; // Speed for alignment in percent
 };
