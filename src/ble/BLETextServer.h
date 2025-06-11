@@ -1,6 +1,8 @@
 #pragma once
 #include <NimBLEDevice.h>
 
+#define DEFAULT_BLE_DEVICE_NAME         "AgroFertilizer"
+
 typedef void (*BLEWriteCallback)(const char* data, size_t length);
 typedef const char* (*BLEReadCallback)(void);
 typedef void (*BLEConnCallback)(void);
@@ -13,7 +15,7 @@ class BLETextServer {
 public:
     static constexpr size_t BUFFER_SIZE = 256;
 
-    BLETextServer(const char* defaultName = "BLE-TextServer");
+    BLETextServer(const char* defaultName = DEFAULT_BLE_DEVICE_NAME);
 
     void onWrite(BLEWriteCallback cb);
     void onRead(BLEReadCallback cb);

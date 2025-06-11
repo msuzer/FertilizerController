@@ -2,39 +2,51 @@
 #define COMMAND_HANDLER_H
 
 #include "BLECommandParser.h"
-#include "core/AppServices.h"
 
-void CommandHandler_setServices(AppServices* s);
+class SystemContext; // Forward declaration
 
-void handlerSetBLEDeviceName(const ParsedInstruction& instr);
-void handlerGetDeviceInfo(const ParsedInstruction& instr);
-void handlerGetSpeedInfo(const ParsedInstruction& instr);
-void handlerGetTaskInfo(const ParsedInstruction& instr);
+class CommandHandler {
+public:
+    static CommandHandler& getInstance();
+    CommandHandler() = default;
+    CommandHandler(const CommandHandler&) = delete;
+    CommandHandler& operator=(const CommandHandler&) = delete;
 
-void handlerStartNewTask(const ParsedInstruction& instr);
-void handlerPauseTask(const ParsedInstruction& instr);
-void handlerResumeTask(const ParsedInstruction& instr);
-void handlerEndTask(const ParsedInstruction& instr);
-void handlerSetInWorkZone(const ParsedInstruction& instr);
+    inline void setContext(SystemContext* ctx) { context = ctx; }
 
-void handlerSetTargetFlowRatePerDaa(const ParsedInstruction& instr);
-void handlerSetTargetFlowRatePerMin(const ParsedInstruction& instr);
-void handlerSetTankLevel(const ParsedInstruction& instr);
-void handlerSetMeasuredWeight(const ParsedInstruction& instr);
+    void registerHandlers();
+private:
+    static SystemContext* context;
 
-void handlerSetSpeedSource(const ParsedInstruction& instr);
-void handlerSetMinWorkingSpeed(const ParsedInstruction& instr);
-void handlerSetSimSpeed(const ParsedInstruction& instr);
+    // Handlers
+    static void handlerSetBLEDeviceName(const ParsedInstruction& instr);
+    static void handlerGetDeviceInfo(const ParsedInstruction& instr);
+    static void handlerGetSpeedInfo(const ParsedInstruction& instr);
+    static void handlerGetTaskInfo(const ParsedInstruction& instr);
 
-void handlerSetAutoRefreshPeriod(const ParsedInstruction& instr);
-void handlerSetHeartBeatPeriod(const ParsedInstruction& instr);
-void handlerGetErrorInfo(const ParsedInstruction& instr);
-void handlerSetPIDKp(const ParsedInstruction& instr);
-void handlerSetPIDKi(const ParsedInstruction& instr);
+    static void handlerStartNewTask(const ParsedInstruction& instr);
+    static void handlerPauseTask(const ParsedInstruction& instr);
+    static void handlerResumeTask(const ParsedInstruction& instr);
+    static void handlerEndTask(const ParsedInstruction& instr);
+    static void handlerSetInWorkZone(const ParsedInstruction& instr);
 
-void handlerReportPIParams(const ParsedInstruction& instr);
-void handlerReportUserParams(const ParsedInstruction& instr);
+    static void handlerSetTargetFlowRatePerDaa(const ParsedInstruction& instr);
+    static void handlerSetTargetFlowRatePerMin(const ParsedInstruction& instr);
+    static void handlerSetTankLevel(const ParsedInstruction& instr);
+    static void handlerSetMeasuredWeight(const ParsedInstruction& instr);
 
-void registerUserCommandHandlers(void);
+    static void handlerSetSpeedSource(const ParsedInstruction& instr);
+    static void handlerSetMinWorkingSpeed(const ParsedInstruction& instr);
+    static void handlerSetSimSpeed(const ParsedInstruction& instr);
+
+    static void handlerSetAutoRefreshPeriod(const ParsedInstruction& instr);
+    static void handlerSetHeartBeatPeriod(const ParsedInstruction& instr);
+    static void handlerGetErrorInfo(const ParsedInstruction& instr);
+    static void handlerSetPIDKp(const ParsedInstruction& instr);
+    static void handlerSetPIDKi(const ParsedInstruction& instr);
+
+    static void handlerReportPIParams(const ParsedInstruction& instr);
+    static void handlerReportUserParams(const ParsedInstruction& instr);
+};
 
 #endif // COMMAND_HANDLER_H

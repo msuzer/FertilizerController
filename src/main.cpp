@@ -8,7 +8,6 @@
 #include "ble/BLETextServer.h"
 #include "ble/BLECommandParser.h"
 #include "io/DS18B20Sensor.h"
-#include "core/AppServices.h"
 #include "core/SystemContext.h"
 #include "core/SystemPreferences.h"
 #include "gps/GPSProvider.h"
@@ -18,30 +17,6 @@
 #else
 #error Target CONFIG_IDF_TARGET is not supported
 #endif
-
-#define VNH7070AS_INA1Pin  25
-#define VNH7070AS_INB1Pin  14
-#define VNH7070AS_PWM1Pin  26
-#define VNH7070AS_SEL1Pin  27
-
-#define VNH7070AS_INA2Pin  19
-#define VNH7070AS_INB2Pin  16
-#define VNH7070AS_PWM2Pin  18
-#define VNH7070AS_SEL2Pin  17
-
-#define GPS_UART_RX_PIN    13
-#define GPS_UART_TX_PIN    21
-
-#define RGB_LEDRPin        15
-#define RGB_LEDGPin        2
-#define RGB_LEDBPin        4
-
-#define DS18B20_DataPin    22
-
-#define I2C_SDAPin         32
-#define I2C_SCLPin         33
-
-#define ADS1115_I2C_ADDRESS 0x48
 
 // === User-Defined Timer Frequency ===
 #define TASK_LOOP_UPDATE_FREQUENCY_HZ         1  // Task loop frequency in Hz
@@ -63,25 +38,11 @@ CircularBuffer ch2(buffer2, ADS1115_BUF_SIZE);
 CircularBuffer ch3(buffer3, ADS1115_BUF_SIZE);
 
 // --- Create Services ---
-ADS1115 ads1115(Wire);
 
 SystemContext context;
-SystemPreferences prefs;
-BLETextServer bleServer(DEFAULT_BLE_DEVICE_NAME);
-BLECommandParser parser;
-TinyGPSPlus gpsModule;
-GPSProvider gpsProvider;
-PIController pi1(DEFAULT_KP_VALUE, DEFAULT_KI_VALUE, -100.0f, 100.0f);
-PIController pi2(DEFAULT_KP_VALUE, DEFAULT_KI_VALUE, -100.0f, 100.0f);
-
-AppServices services(&context, &prefs, &bleServer, &parser, &gpsModule, &gpsProvider, &pi1, &pi2);
 
 // Instantiate the drivers
 // PWM write function using ESP32's ledcWrite
-inline void writePwmESP32(uint8_t pin, uint8_t duty) { ledcWrite(pin, duty); }
-inline void writeDigitalESP32(uint8_t pin, bool state) { digitalWrite(pin, state ? HIGH : LOW); }
-VNH7070AS motor1(VNH7070AS_INA1Pin, VNH7070AS_INB1Pin, VNH7070AS_PWM1Pin, VNH7070AS_SEL1Pin, writePwmESP32, writeDigitalESP32);
-VNH7070AS motor2(VNH7070AS_INA2Pin, VNH7070AS_INB2Pin, VNH7070AS_PWM2Pin, VNH7070AS_SEL2Pin, writePwmESP32, writeDigitalESP32);
 
 // === Timer Setup ===
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
@@ -97,11 +58,11 @@ static void taskLoopUpdateCallback(void *p) {
   static int counterRefresh = 0;
 
   // Process each channel
-  context.getLeftChannel().updateChannel(pi1);
-  context.getLeftChannel().updateChannel(pi2);
+  context.getLeftChannel().updateChannel();
+  context.getLeftChannel().updateChannel();
 
   // Auto-refresh
-  int arPeriod = context.getAutoRefreshPeriod();
+  int arPeriod = context.getPrefs().getParams().autoRefreshPeriod;
   if ((arPeriod > 0) && (++counterRefresh >= arPeriod)) {
     counterRefresh = 0;
     timeToRefresh = true;
@@ -115,22 +76,23 @@ static void controlLoopUpdateCallback(void *p) {
 
   // Read feedback (pot values)
   // --- Compute averages and convert to voltage ---
-  int16_t avgRaw0 = ch0.average();
-  int16_t avgRaw1 = ch1.average();
-  int16_t avgRaw2 = ch2.average();
-  int16_t avgRaw3 = ch3.average();
-
-  float pos1 = ads1115.rawToVoltage(avgRaw0);
-  float pos2 = ads1115.rawToVoltage(avgRaw1);
-  float current1 = ads1115.rawToCurrent(avgRaw2);
-  float current2 = ads1115.rawToCurrent(avgRaw3);
+  ADS1115& ads1115 = context.getADS1115();
+  float pos1 = ads1115.rawToVoltage(ch0.average());
+  float pos2 = ads1115.rawToVoltage(ch1.average());
+  float current1 = ads1115.rawToCurrent(ch2.average());
+  float current2 = ads1115.rawToCurrent(ch3.average());
 
   // Target setpoints (user-defined, e.g., from GUI or serial)
-  volatile float target1 = context.getLeftChannel().getTargetFlowRatePerDaa();  // Example setpoint
-  volatile float target2 = context.getRightChannel().getTargetFlowRatePerDaa();
+  volatile float target1 = context.getLeftChannel().getTargetFlowRatePerMin();  // Example setpoint
+  volatile float target2 = context.getRightChannel().getTargetFlowRatePerMin();
 
+  PIController& pi1 = context.getLeftChannel().getPIController();
+  PIController& pi2 = context.getRightChannel().getPIController();
   float duty1 = pi1.compute(target1, pos1, dt);
   float duty2 = pi2.compute(target2, pos2, dt);
+
+  VNH7070AS& motor1 = context.getLeftChannel().getMotor();
+  VNH7070AS& motor2 = context.getRightChannel().getMotor();
 
   motor1.setSpeed(static_cast<int8_t>(duty1));
   motor2.setSpeed(static_cast<int8_t>(duty2));
@@ -143,39 +105,12 @@ static void controlLoopUpdateCallback(void *p) {
   portEXIT_CRITICAL_ISR(&timerMux);
 }
 
-void writeRGBLEDs(uint8_t chR, uint8_t chG, uint8_t chB) {
-  digitalWrite(RGB_LEDRPin, chR);
-  digitalWrite(RGB_LEDGPin, chG);
-  digitalWrite(RGB_LEDBPin, chB);
-}
-
-void onWriteCallback(const char* message, size_t len) {
-    if (message != nullptr) {
-      Serial.printf("Received: %.*s\n", len, message);
-      parser.dispatchInstruction(message);
-    }
-}
-
-const char* onReadCallback() {
-    return "ESP32 says hi!";
-}
-
-void onConnectCallback() {
-  writeRGBLEDs(LOW, LOW, HIGH);
-  Serial.println("Client connected!");
-}
-
-void onDisconnectCallback() {
-  writeRGBLEDs(LOW, HIGH, LOW);
-  Serial.println("Client disconnected!");
-}
-
 void die(const char* message) {
   printf(message);
   while(1) {
-    writeRGBLEDs(HIGH, LOW, LOW);
+    context.writeRGBLEDs(HIGH, LOW, LOW);
     delay(100);
-    writeRGBLEDs(LOW, LOW, LOW);
+    context.writeRGBLEDs(LOW, LOW, LOW);
     delay(1000);
   }
 }
@@ -202,16 +137,12 @@ void setup() {
   pinMode(RGB_LEDGPin, OUTPUT);
   pinMode(RGB_LEDBPin, OUTPUT);
 
-  motor1.setupPins();
-  motor2.setupPins();
-
   Serial.begin(115200);
   Serial1.begin(9600, SERIAL_8N1, GPS_UART_RX_PIN, GPS_UART_TX_PIN);
-  Wire.begin(I2C_SDAPin, I2C_SCLPin);
 
-  writeRGBLEDs(LOW, HIGH, LOW);
+  context.writeRGBLEDs(LOW, HIGH, LOW);
 
-  if (DS18B20Sensor::getInstance().begin(DS18B20_DataPin)) {
+  if (DS18B20Sensor::getInstance().init(DS18B20_DataPin)) {
       Serial.println("DS18B20 found!");
       float temp = DS18B20Sensor::getInstance().getTemperatureC();
       String id = DS18B20Sensor::getInstance().getSensorID();
@@ -225,12 +156,6 @@ void setup() {
 
   printf("CPU1 reset reason: ");
   printResetReason(rtc_get_reset_reason(1));
-
-  if (!ads1115.begin(ADS1115_I2C_ADDRESS)) {
-      die("ADS1115 not found!");
-  }
-
-  ads1115.setGain(ADS1115::Gain::FSR_4_096V); // Optional: Set gain
 
   esp_timer_create_args_t timer_args1 = {
     .callback = taskLoopUpdateCallback,
@@ -252,22 +177,20 @@ void setup() {
     die("PCNT Timer Setup Failed!\n");
   }
 
-  context.injectServices(&services);
-  DispenserChannel::injectServices(&services);
-  prefs.injectServices(&services);
-  gpsProvider.injectServices(&services);
-
-  context.begin();
+  context.init();
   
-  bleServer.onWrite(onWriteCallback);
-  bleServer.onRead(onReadCallback);
-  bleServer.onConnect(onConnectCallback);
-  bleServer.onDisconnect(onDisconnectCallback);
+  BLETextServer& bleServer = context.getBLETextServer();
 
   bleServer.start();
 }
 
 void loop() {
+  ADS1115& ads1115 = context.getADS1115();
+  BLETextServer& bleServer = context.getBLETextServer();
+  VNH7070AS& motor1 = context.getLeftChannel().getMotor();
+  VNH7070AS& motor2 = context.getRightChannel().getMotor();
+  TinyGPSPlus& gpsModule = context.getGPSModule();
+
   if (timerAlarmOccurred) {
     timerAlarmOccurred = false;
 

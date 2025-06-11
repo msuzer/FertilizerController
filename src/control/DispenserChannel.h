@@ -2,11 +2,18 @@
 
 #include <stdint.h>
 #include <Arduino.h>
-#include "core/AppServices.h"
 #include "PIController.h"
+#include "io/VNH7070AS.h"
+#include "io/IOConfig.h"
 #include "core/SystemPreferences.h"
 
+class SystemContext; // Forward declaration
+
 #define FLOW_ERROR_WARNING_THRESHOLD    2.0f
+
+// I/O Operations
+static void writePwmESP32(uint8_t pin, uint8_t duty) { ledcWrite(pin, duty); }
+static void writeDigitalESP32(uint8_t pin, bool state) { digitalWrite(pin, state ? HIGH : LOW); }
 
 enum UserErrorCodes {
     NO_ERROR = 0,
@@ -35,12 +42,13 @@ enum class UserTaskState {
 class DispenserChannel {
 public:
     DispenserChannel(String name = "") : channelName(name) {}
-
-    static void injectServices(AppServices* s)  { services = s; }
+    void init(SystemContext* ctx, const VNH7070ASPins& motorPins);
 
     // Setters
     bool setTaskState(UserTaskState state);
-    
+    inline void setPIKp(float Kp) { piController.setPIKp(Kp); }
+    inline void setPIKi(float Ki) { piController.setPIKi(Ki); }
+    inline void setPIParams(float Kp, float Ki) { piController.setPIKp(Kp); piController.setPIKi(Ki); }
     inline void setBoomWidth(float val) { boomWidth = val; }
     inline void setTargetFlowRatePerDaa(float val) { targetFlowRatePerDaa = val; }
     inline void setTargetFlowRatePerMin(float val) { targetFlowRatePerMin = val; }
@@ -54,6 +62,12 @@ public:
     inline void clearAllErrors() { errorFlags = 0; }
 
     // Getters
+    inline VNH7070AS& getMotor() { return motorDriver; }
+    inline const VNH7070AS& getMotor() const { return motorDriver; }
+    inline PIController& getPIController() { return piController; }
+    inline const PIController& getPIController() const { return piController; }
+    inline float getPIKp() const { return piController.getPIKp(); }
+    inline float getPIKi() const { return piController.getPIKi(); }
     inline float getTargetFlowRatePerDaa() const { return targetFlowRatePerDaa; }
     inline float getTargetFlowRatePerMin() const { return targetFlowRatePerMin; }
     inline float getRealFlowRatePerDaa() const { return realFlowRatePerDaa; }
@@ -76,7 +90,7 @@ public:
     const char* taskStateToString(UserTaskState state) const;
 
     void checkLowSpeedState();
-    void updateChannel(PIController& pic);
+    void updateChannel();
     float getProcessedAreaPerSec() const;
 
     // Task metrics per channel
@@ -94,10 +108,19 @@ public:
     inline int getDistanceTaken() const { return distanceTaken; }
     inline float getAreaCompleted() const { return areaCompleted; }
     inline float getLiquidConsumed() const { return liquidConsumed; }
+    
+    inline static float getTankLevel() { return tankLevel; }
+    inline void decreaseTankLevel(float value) { tankLevel -= value; }
+    inline static bool isClientInWorkZone() { return clientInWorkZone; }
+    inline static void setTankLevel(float level) { tankLevel = level; }
+    inline static void setClientInWorkZone(bool inWorkZone) { clientInWorkZone = inWorkZone; }
 
 private:
     String channelName;
-    static AppServices* services;
+    static SystemContext* context;
+
+    PIController piController;
+    VNH7070AS motorDriver;
 
     float targetFlowRatePerDaa = 0.0f;
     float targetFlowRatePerMin = 0.0f;
@@ -114,6 +137,9 @@ private:
     int distanceTaken = 0;
     float areaCompleted = 0.0f;
     float liquidConsumed = 0.0f;
+
+    static float tankLevel; // in liters, used for area calculations
+    static bool clientInWorkZone;
 
     float boomWidth = 0.0f; // in meters, used for area calculations
 };

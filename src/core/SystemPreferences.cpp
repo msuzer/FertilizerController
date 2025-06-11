@@ -1,7 +1,12 @@
 // SystemPreferences.cpp
 #include "SystemPreferences.h"
-#include "SystemContext.h"
-#include "control/PIController.h"
+#include "control/DispenserChannel.h"
+#include "core/SystemContext.h"
+
+SystemPreferences& SystemPreferences::getInstance() {
+    static SystemPreferences instance;
+    return instance;
+}
 
 const char* SystemPreferences::keyNames[KEY_COUNT] = {
     "speedSrc",
@@ -27,16 +32,16 @@ const char* SystemPreferences::getKeyName(PrefKey key) {
     return keyNames[static_cast<int>(key)];
 }
 
-void SystemPreferences::load(SystemContext& ctx) {
+void SystemPreferences::init(SystemContext& ctx) {
     Preferences prefs;
     prefs.begin(storageNamespace, true);
 
-    ctx.setSpeedSource(prefs.getString(keyNames[KEY_SPEED_SRC], DEFAULT_SPEED_SOURCE));
-    ctx.setSimSpeed(prefs.getFloat(keyNames[KEY_SIM_SPEED], DEFAULT_SIM_SPEED));
-    ctx.setMinWorkingSpeed(prefs.getFloat(keyNames[KEY_MIN_SPEED], DEFAULT_MIN_WORKING_SPEED));
-    ctx.setAutoRefreshPeriod(prefs.getInt(keyNames[KEY_REFRESH], DEFAULT_AUTO_REFRESH_PERIOD));
-    ctx.setHeartBeatPeriod(prefs.getInt(keyNames[KEY_HEARTBEAT], DEFAULT_HEARTBEAT_PERIOD));
-    ctx.setTankLevel(prefs.getFloat(keyNames[KEY_TANK_LEVEL], DEFAULT_TANK_INITIAL_LEVEL));
+    params.speedSource = prefs.getString(keyNames[KEY_SPEED_SRC], DEFAULT_SPEED_SOURCE);
+    params.simSpeed = prefs.getFloat(keyNames[KEY_SIM_SPEED], DEFAULT_SIM_SPEED);
+    params.minWorkingSpeed = prefs.getFloat(keyNames[KEY_MIN_SPEED], DEFAULT_MIN_WORKING_SPEED);
+    params.autoRefreshPeriod = prefs.getInt(keyNames[KEY_REFRESH], DEFAULT_AUTO_REFRESH_PERIOD);
+    params.heartBeatPeriod = prefs.getInt(keyNames[KEY_HEARTBEAT], DEFAULT_HEARTBEAT_PERIOD);
+    DispenserChannel::setTankLevel(prefs.getFloat(keyNames[KEY_TANK_LEVEL], DEFAULT_TANK_INITIAL_LEVEL));
 
     auto& left = ctx.getLeftChannel();
     left.setTargetFlowRatePerDaa(prefs.getFloat(keyNames[KEY_LEFT_RATE_DAA], DEFAULT_TARGET_RATE_KG_DAA));
@@ -48,35 +53,10 @@ void SystemPreferences::load(SystemContext& ctx) {
     right.setTargetFlowRatePerMin(prefs.getFloat(keyNames[KEY_RIGHT_RATE_MIN], DEFAULT_TARGET_FLOW_PER_MIN));
     right.setFlowCoeff(prefs.getFloat(keyNames[KEY_RIGHT_FLOW_COEFF], DEFAULT_FLOW_COEFF));
 
-    services->pi1->setPIKp(prefs.getFloat(keyNames[KEY_PI_KP], DEFAULT_KP_VALUE));
-    services->pi2->setPIKp(prefs.getFloat(keyNames[KEY_PI_KP], DEFAULT_KP_VALUE));
-
-    services->pi1->setPIKi(prefs.getFloat(keyNames[KEY_PI_KI], DEFAULT_KI_VALUE));
-    services->pi2->setPIKi(prefs.getFloat(keyNames[KEY_PI_KI], DEFAULT_KI_VALUE));
-
-    prefs.end();
-}
-
-void SystemPreferences::save(const SystemContext& ctx) {
-    Preferences prefs;
-    prefs.begin(storageNamespace);
-
-    prefs.putString(keyNames[KEY_SPEED_SRC], ctx.getSpeedSource());
-    prefs.putFloat(keyNames[KEY_SIM_SPEED], ctx.getSimSpeed());
-    prefs.putFloat(keyNames[KEY_MIN_SPEED], ctx.getMinWorkingSpeed());
-    prefs.putInt(keyNames[KEY_REFRESH], ctx.getAutoRefreshPeriod());
-    prefs.putInt(keyNames[KEY_HEARTBEAT], ctx.getHeartBeatPeriod());
-    prefs.putFloat(keyNames[KEY_TANK_LEVEL], ctx.getTankLevel());
-
-    const auto& left = ctx.getLeftChannel();
-    prefs.putFloat(keyNames[KEY_LEFT_RATE_DAA], left.getTargetFlowRatePerDaa());
-    prefs.putFloat(keyNames[KEY_LEFT_RATE_MIN], left.getTargetFlowRatePerMin());
-    prefs.putFloat(keyNames[KEY_LEFT_FLOW_COEFF], left.getFlowCoeff());
-
-    const auto& right = ctx.getRightChannel();
-    prefs.putFloat(keyNames[KEY_RIGHT_RATE_DAA], right.getTargetFlowRatePerDaa());
-    prefs.putFloat(keyNames[KEY_RIGHT_RATE_MIN], right.getTargetFlowRatePerMin());
-    prefs.putFloat(keyNames[KEY_RIGHT_FLOW_COEFF], right.getFlowCoeff());
+    float kp = prefs.getFloat(keyNames[KEY_PI_KP], DEFAULT_KP_VALUE);
+    float ki = prefs.getFloat(keyNames[KEY_PI_KI], DEFAULT_KI_VALUE);
+    ctx.getLeftChannel().setPIParams(kp, ki);
+    ctx.getRightChannel().setPIParams(kp, ki);
 
     prefs.end();
 }

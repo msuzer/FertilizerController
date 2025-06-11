@@ -5,9 +5,7 @@ DS18B20Sensor& DS18B20Sensor::getInstance() {
     return instance;
 }
 
-DS18B20Sensor::DS18B20Sensor() : oneWire(nullptr), sensors(nullptr), ready(false) {}
-
-bool DS18B20Sensor::begin(uint8_t pin) {
+bool DS18B20Sensor::init(uint8_t pin) {
     oneWire = new OneWire(pin);
     sensors = new DallasTemperature(oneWire);
     sensors->begin();

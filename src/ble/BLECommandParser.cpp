@@ -1,6 +1,6 @@
 #include "BLECommandParser.h"
 
-void BLECommandParser::registerCommand(const std::string& name, CommandHandler handler) {
+void BLECommandParser::registerCommand(const std::string& name, CommandFunction handler) {
     commands.push_back({name, handler});
 }
 

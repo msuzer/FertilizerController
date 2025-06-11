@@ -1,7 +1,8 @@
 // SystemPreferences.h
 #pragma once
 #include <Preferences.h>
-#include "core/AppServices.h"
+
+class SystemContext; // Forward declaration
 
 // Default values (copied from UserInterface.h)
 #define DEFAULT_TARGET_RATE_KG_DAA      20.0f
@@ -34,12 +35,26 @@
         KEY_COUNT
     };
 
+struct SystemParams {
+    String speedSource;
+    float simSpeed;
+    float minWorkingSpeed;
+    int autoRefreshPeriod;
+    int heartBeatPeriod;
+};
+
 class SystemPreferences {
 public:
-    void injectServices(AppServices* s)  { services = s; }
+    static SystemPreferences& getInstance();
+    SystemPreferences() = default;
+    SystemPreferences(const SystemPreferences&) = delete;
+    SystemPreferences& operator=(const SystemPreferences&) = delete;
 
-    void load(SystemContext& ctx);
-    void save(const SystemContext& ctx);
+    const SystemParams& getParams() const { return params; }
+    SystemParams& getParams() { return params; }
+    void setParams(const SystemParams& p) { params = p; }
+
+    void init(SystemContext& ctx);
 
     int getInt(PrefKey key, int defaultValue);
     float getFloat(PrefKey key, float defaultValue);
@@ -50,7 +65,7 @@ public:
 
     static const char* getKeyName(PrefKey key);
 private:
-    AppServices* services = nullptr;
+    SystemParams params;
     static constexpr const char* storageNamespace = "UIData";
     static const char* keyNames[KEY_COUNT];
 };

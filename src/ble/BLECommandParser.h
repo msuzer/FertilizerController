@@ -31,18 +31,18 @@ struct ParsedInstruction {
 };
 
 //using CommandHandler = std::function<void(const ParsedInstruction&)>; // C++11 Lambda
-using CommandHandler = void (*)(const ParsedInstruction&); // C++ Style Function Pointer
+using CommandFunction = void (*)(const ParsedInstruction&); // C++ Style Function Pointer
 // typedef void (*CommandHandler)(const ParsedInstruction&); // C Style Function Pointer
 
 struct CommandEntry {
     std::string name;
-    CommandHandler handler;
+    CommandFunction handler;
 };
 
 class BLECommandParser {
 public:
     BLECommandParser(){commands.reserve(MAX_COMMANDS);}
-    void registerCommand(const std::string& name, CommandHandler handler);
+    void registerCommand(const std::string& name, CommandFunction handler);
     void sortCommands();
     void dispatchInstruction(const std::string& input);
 private:

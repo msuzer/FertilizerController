@@ -1,10 +1,5 @@
 #include "PIController.h"
 
-PIController::PIController(float Kp, float Ki, float outputMin, float outputMax)
-    : _Kp(Kp), _Ki(Ki), _outputMin(outputMin), _outputMax(outputMax), _integral(0.0f)
-{
-}
-
 float PIController::compute(float setpoint, float measurement, float dt) {
     error = setpoint - measurement;
 

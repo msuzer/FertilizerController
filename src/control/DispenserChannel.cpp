@@ -2,9 +2,17 @@
 #include "gps/GPSProvider.h"
 #include "core/SystemContext.h"
 
-AppServices* DispenserChannel::services = nullptr;
+float DispenserChannel::tankLevel = 0.0f; // Default tank level
+bool DispenserChannel::clientInWorkZone = false; // Default client work zone status
+SystemContext* DispenserChannel::context = nullptr;
 
-bool DispenserChannel::setTaskState(UserTaskState state) {
+void DispenserChannel::init(SystemContext* ctx, const VNH7070ASPins &motorPins) {
+  context = ctx;
+  motorDriver.init(motorPins, writePwmESP32, writeDigitalESP32);
+}
+
+bool DispenserChannel::setTaskState(UserTaskState state)
+{
     bool validOp = false;
 
     switch (taskState) {
@@ -46,10 +54,10 @@ const char* DispenserChannel::getTaskStateName() const {
 }
 
 void DispenserChannel::checkLowSpeedState() {
-  SystemContext* context = services->systemContext;
+    SystemParams & params = context->getPrefs().getParams();
     if (getTargetFlowRatePerDaa() > 0.0f) {
-        if (context->getGroundSpeed() < context->getMinWorkingSpeed()) {
-            if (context->getMinWorkingSpeed() > 0) {
+        if (context->getGroundSpeed() < params.minWorkingSpeed) {
+            if (params.minWorkingSpeed > 0) {
                 if (isTaskActive()) {
                     lowSpeedFlag = true;
                     setTaskState(UserTaskState::Paused);
@@ -69,11 +77,15 @@ void DispenserChannel::checkLowSpeedState() {
     }
 }
 
-void DispenserChannel::updateChannel(PIController& pic) {
-  SystemContext* context = services->systemContext;
-    float flowRatePerMin = getRealFlowRatePerMin();
+void DispenserChannel::updateChannel() {
+  SystemParams & params = context->getPrefs().getParams();
+  float groundSpeedKMPH = context->getGroundSpeed();
+  float groundSpeedMPS = context->getGroundSpeed(true);
+
+  int satCount = context->getGPSProvider().getSatelliteCount();
+  float flowRatePerMin = getRealFlowRatePerMin();
     bool isBoomWidthOK = (getBoomWidth() > 0);
-    bool isSpeedOK = context->isSpeedOK();
+    bool isSpeedOK = (groundSpeedKMPH >= params.minWorkingSpeed);
     bool isFlowOK = (flowRatePerMin > 0);
     const float deltaTime = 1.0f;
 
@@ -82,23 +94,22 @@ void DispenserChannel::updateChannel(PIController& pic) {
     if (isSpeedOK && isBoomWidthOK) {
       if (isFlowOK) {
         // Update shared metrics only once per update (safe here — same slice for both channels)
-        float groundSpeed = context->getGroundSpeed(true);
         float processedAreaPerSec = getProcessedAreaPerSec();
 
-        increaseDistanceTaken(groundSpeed * deltaTime);
+        increaseDistanceTaken(groundSpeedMPS * deltaTime);
         increaseAreaProcessed(processedAreaPerSec);
         incrementTaskDuration();
 
         float slice = flowRatePerMin / 60.0f;
-        context->decreaseTankLevel(slice);
+        decreaseTankLevel(slice);
         increaseLiquidConsumed(slice);
 
         printf("Ground Speed, Boom Width and Min Flow OK for one channel!\n");
 
         clearError(INSUFFICIENT_FLOW);
 
-        if (abs(pic.getError()) >= FLOW_ERROR_WARNING_THRESHOLD) {
-          if (++counter >= context->getHeartBeatPeriod()) {
+        if (abs(piController.getError()) >= FLOW_ERROR_WARNING_THRESHOLD) {
+          if (++counter >= params.heartBeatPeriod) {
             setError(FLOW_NOT_SETTLED);
             counter = 0;
           }
@@ -118,14 +129,14 @@ void DispenserChannel::updateChannel(PIController& pic) {
     }
 
     // Tank level check (same for both)
-    if (context->getTankLevel() > 0.0f) {
+    if (getTankLevel() > 0.0f) {
       clearError(LIQUID_TANK_EMPTY);
     } else {
       setError(LIQUID_TANK_EMPTY);
     }
 
     // GPS satellite check (same for both)
-    if (services->gpsProvider->getSatelliteCount() < MIN_SATELLITES_NEEDED) {
+    if (satCount < GPSProvider::MIN_SATELLITES_NEEDED) {
       setError(NO_SATELLITE_CONNECTED);
     } else {
       clearError(NO_SATELLITE_CONNECTED);
@@ -133,6 +144,5 @@ void DispenserChannel::updateChannel(PIController& pic) {
 }
 
 float DispenserChannel::getProcessedAreaPerSec() const {
-  SystemContext* context = services->systemContext;
-  return context->getGroundSpeed() * getBoomWidth();
+  return context->getGroundSpeed(true) * getBoomWidth();
 }

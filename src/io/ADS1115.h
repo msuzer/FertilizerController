@@ -1,5 +1,6 @@
 #pragma once
 #include <Wire.h>
+#include "ADS1115Pins.h"
 
 class ADS1115 {
 public:
@@ -25,7 +26,7 @@ public:
 
     ADS1115(TwoWire& wire = Wire);
 
-    bool begin(uint8_t i2c_address = 0x48);
+    bool init(const uint8_t i2c_address = 0x48, const ADS1115Pins & pins = {-1, -1});
     void setGain(Gain gain);
     void setDataRate(DataRate rate);
 

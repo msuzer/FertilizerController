@@ -1,19 +1,47 @@
 #include "SystemContext.h"
-#include "ble/BLETextServer.h"
-#include "TinyGPSPlus.h"
-#include "ble/CommandHandler.h"
-#include "control/PIController.h"
-#include "io/DS18B20Sensor.h"
-#include "core/SystemPreferences.h"
+#include <TinyGPSPlus.h>
 
-void SystemContext::begin() {
+// BLE Callback Implementations
+static void onWriteCallback(const char* message, size_t len);
+static const char* onReadCallback();
+static void onConnectCallback();
+static void onDisconnectCallback();
+
+constexpr ADS1115Pins SystemContext::adsPins;
+constexpr VNH7070ASPins SystemContext::leftChannelPins;
+constexpr VNH7070ASPins SystemContext::rightChannelPins;
+
+SystemContext& SystemContext::instance() {
+    static SystemContext ctx;
+    return ctx;
+}
+
+void SystemContext::init() {
     espID = readChipUUID();
     bleMAC = readBLEMAC();
     boardID = readDS18B20ID();
 
     printf("Chip ID: %s | BLE MAC: %s | Board ID: %s\n", espID.c_str(), bleMAC.c_str(), boardID.c_str());
 
-    services->prefs->load(*this);
+    ads1115.init(ADS1115_I2C_ADDRESS, adsPins);
+    ads1115.setGain(ADS1115::Gain::FSR_4_096V); // Optional: Set gain
+
+    prefs.init(*this);
+    leftChannel.init(this, leftChannelPins);
+    rightChannel.init(this, rightChannelPins);
+
+    commandHandler.setContext(this);
+    commandHandler.registerHandlers();
+
+    gpsProvider.setModule(&gpsModule);
+
+    bleTextServer.onWrite(onWriteCallback);
+    bleTextServer.onRead(onReadCallback);
+    bleTextServer.onConnect(onConnectCallback);
+    bleTextServer.onDisconnect(onDisconnectCallback);
+
+    // Initialize DS18B20 sensor
+    tempSensor.init(tempPins.DQ);
 }
 
 String SystemContext::readChipUUID() {
@@ -35,31 +63,39 @@ String SystemContext::readDS18B20ID() {
 }
 
 float SystemContext::getGroundSpeed(bool useSim) const {
-    if (speedSource == "GPS") {
-        return services->gpsProvider->getSpeed();
+  const SystemParams& params = prefs.getParams();
+    if (params.speedSource == "GPS") {
+        return gpsProvider.getSpeed();
     }
 
-    return simSpeed;
+    return params.simSpeed;
+}
+
+void SystemContext::writeRGBLEDs(uint8_t chR, uint8_t chG, uint8_t chB) {
+  digitalWrite(RGB_LEDRPin, chR);
+  digitalWrite(RGB_LEDGPin, chG);
+  digitalWrite(RGB_LEDBPin, chB);
 }
 
 // BLE Callback Implementations
 
-void SystemContext::onBLEConnected() {
-    printf("BLE Connected\n");
-    // Optionally update some state, flags, LED, etc.
+static void onWriteCallback(const char* message, size_t len) {
+    if (message != nullptr) {
+      Serial.printf("Received: %.*s\n", len, message);
+      SystemContext::instance().getBLECommandParser().dispatchInstruction(message);
+    }
 }
 
-void SystemContext::onBLEDisconnected() {
-    printf("BLE Disconnected\n");
-    // Optionally update some state, flags, LED, etc.
+static const char* onReadCallback() {
+    return "ESP32 says hi!";
 }
 
-void SystemContext::onBLEWrite(const String& characteristic, const String& value) {
-    printf("BLE Write - Characteristic: %s, Value: %s\n", characteristic.c_str(), value.c_str());
-    // Optionally process BLE write commands
+static void onConnectCallback() {
+  // writeRGBLEDs(LOW, LOW, HIGH);
+  Serial.println("Client connected!");
 }
 
-void SystemContext::onBLERead(const String& characteristic) {
-    printf("BLE Read - Characteristic: %s\n", characteristic.c_str());
-    // Optionally respond to BLE read requests
+static void onDisconnectCallback() {
+  // writeRGBLEDs(LOW, HIGH, LOW);
+  Serial.println("Client disconnected!");
 }

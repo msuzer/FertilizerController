@@ -1,12 +1,15 @@
 #pragma once
 
 #include <stdint.h>
+#include "core/SystemPreferences.h"
 
 class PIController {
 public:
-    PIController(float Kp, float Ki, float outputMin, float outputMax);
-    float getPIKp(void) {return _Kp; }
-    float getPIKi(void) {return _Ki; }
+    PIController(float Kp = DEFAULT_KP_VALUE, float Ki = DEFAULT_KI_VALUE, float outputMin = -100.0f, float outputMax = 100.0f)
+    : _Kp(Kp), _Ki(Ki), _outputMin(outputMin), _outputMax(outputMax), _integral(0.0f) { }
+
+    const float getPIKp(void) const {return _Kp; }
+    const float getPIKi(void) const {return _Ki; }
     void setPIKp(float value) { _Kp = value; }
     void setPIKi(float value) { _Ki = value; }
     float getError(void) const { return error; }
