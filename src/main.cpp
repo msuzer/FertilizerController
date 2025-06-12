@@ -1,26 +1,40 @@
+// ============================================
+// Main Application Entry Point
+// 
+// - SystemContext manages all core services
+// - DebugInfoPrinter provides system diagnostics and debug printing
+// - Periodic tasks run via ESP timers (taskLoop, controlLoop)
+// - BLETextServer provides BLE communication interface
+// - DS18B20, GPS, Motors, Flow Control handled via core services
+//
+// Structure:
+//   - setup(): Initializes system, BLE, timers
+//   - loop(): Processes periodic control tasks and GPS data
+//   - taskLoopUpdateCallback(): Task state and metrics updates
+//   - controlLoopUpdateCallback(): PI control loop updates
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
+
 #include <Arduino.h>
+#include <esp32/rom/rtc.h>
 #include <Wire.h>
 #include <TinyGPSPlus.h>
+
 #include "ble/BLETextServer.h"
 #include "io/VNH7070AS.h"
 #include "io/ADS1115.h"
-#include "control/PIController.h"
-#include "ble/BLECommandParser.h"
 #include "io/DS18B20Sensor.h"
-#include "core/SystemContext.h"
-#include "core/SystemPreferences.h"
-#include "gps/GPSProvider.h"
-#include "core/DebugInfoPrinter.h"
 
-#if CONFIG_IDF_TARGET_ESP32  // ESP32/PICO-D4
-#include "esp32/rom/rtc.h"
-#else
-#error Target CONFIG_IDF_TARGET is not supported
-#endif
+#include "core/SystemContext.h"
+#include "core/DebugInfoPrinter.h"
 
 // === User-Defined Timer Frequency ===
 #define TASK_LOOP_UPDATE_FREQUENCY_HZ         1  // Task loop frequency in Hz
-#define TIMER_PERIOD_US(Freq)                 (1000000 / Freq)  // Period in microseconds
+#define TIMER_PERIOD_US(Freq)                 (1000000ull / Freq)  // Period in microseconds
+
 
 // --- Create Services ---
 SystemContext context;
@@ -38,9 +52,18 @@ static void controlLoopUpdateCallback(void *p);
 static void taskLoopUpdateCallback(void *p) {
   static int counterRefresh = 0;
 
+  DispenserChannel& leftChannel = context.getLeftChannel();
+  DispenserChannel& rightChannel = context.getRightChannel();
+
   // Process each channel
-  context.getLeftChannel().updateTaskMetrics();
-  context.getRightChannel().updateTaskMetrics();
+  leftChannel.checkLowSpeedState();
+  rightChannel.checkLowSpeedState();
+
+  leftChannel.updateTaskMetrics();
+  rightChannel.updateTaskMetrics();
+
+  leftChannel.reportErrorFlags();
+  rightChannel.reportErrorFlags();
 
   // Auto-refresh
   int arPeriod = context.getPrefs().getParams().autoRefreshPeriod;
@@ -72,21 +95,28 @@ void die(const char* message) {
   }
 }
 
-esp_err_t setupPeriodicAlarm(const esp_timer_create_args_t & timer_args, uint64_t period) {
-  esp_timer_handle_t timer_handle;
-  esp_err_t ret;
+esp_err_t setupPeriodicAlarmWrapper(const char* timerName, esp_timer_cb_t callback, uint64_t periodUs) {
+    esp_timer_create_args_t timer_args = {
+        .callback = callback,
+        .arg = NULL,
+        .name = timerName
+    };
 
-  ret = esp_timer_create(&timer_args, &timer_handle);
-  if (ret != ESP_OK) {
-    return ret;
-  }
+    esp_timer_handle_t timer_handle;
+    esp_err_t ret = esp_timer_create(&timer_args, &timer_handle);
+    if (ret != ESP_OK) {
+        printf("[TIMER] ERROR creating timer '%s'!\n", timerName);
+        return ret;
+    }
 
-  ret = esp_timer_start_periodic(timer_handle, period);
-  if (ret != ESP_OK) {
-    return ret;
-  }
+    ret = esp_timer_start_periodic(timer_handle, periodUs);
+    if (ret != ESP_OK) {
+        printf("[TIMER] ERROR starting timer '%s'!\n", timerName);
+        return ret;
+    }
 
-  return ESP_OK;
+    printf("[TIMER] Created '%s' period %llu ms\n", timerName, periodUs / 1000ull);
+    return ESP_OK;
 }
 
 void setup() {
@@ -102,37 +132,25 @@ void setup() {
   DebugInfoPrinter::printResetReason("CPU0", rtc_get_reset_reason(0));
   DebugInfoPrinter::printResetReason("CPU1", rtc_get_reset_reason(1));
 
-  esp_timer_create_args_t timer_args1 = {
-    .callback = taskLoopUpdateCallback,
-    .arg = NULL,
-    .name = "user_timer"
-  };
+  DebugInfoPrinter::printVersionInfo();
 
-  if (setupPeriodicAlarm(timer_args1, TIMER_PERIOD_US(TASK_LOOP_UPDATE_FREQUENCY_HZ)) != ESP_OK) {
-    die("User Timer Setup Failed!\n");
+  esp_err_t ret = setupPeriodicAlarmWrapper("taskLoop_timer", 
+    taskLoopUpdateCallback, TIMER_PERIOD_US(TASK_LOOP_UPDATE_FREQUENCY_HZ));
+
+  if (ret != ESP_OK) {
+    die("Task Loop Timer Setup Failed!\n");
   }
 
-  esp_timer_create_args_t timer_args2 = {
-    .callback = controlLoopUpdateCallback,
-    .arg = NULL,
-    .name = "pcnt_timer"
-  };
+  ret = setupPeriodicAlarmWrapper("controlLoop_timer", 
+    controlLoopUpdateCallback, TIMER_PERIOD_US(CONTROL_LOOP_UPDATE_FREQUENCY_HZ));
 
-  if (setupPeriodicAlarm(timer_args2, TIMER_PERIOD_US(CONTROL_LOOP_UPDATE_FREQUENCY_HZ)) != ESP_OK) {
-    die("PCNT Timer Setup Failed!\n");
+  if (ret != ESP_OK) {
+    die("Control Loop Timer Setup Failed!\n");
   }
 
   context.init();
   
-  DS18B20Sensor& tempSensor = context.getTempSensor();
-  if (tempSensor.isReady()) {
-      Serial.println("DS18B20 found!");
-      float temp = tempSensor.getTemperatureC();
-      String id = tempSensor.getSensorID();
-      Serial.printf("Sensor ID: %s | Temperature: %.2f °C\n", id.c_str(), temp);
-  } else {
-      Serial.println("DS18B20 not found.");
-  }
+  DebugInfoPrinter::printTempSensorStatus(context.getTempSensor());
 
   BLETextServer& bleServer = context.getBLETextServer();
 
@@ -141,7 +159,6 @@ void setup() {
 
 void loop() {
   ADS1115& ads1115 = context.getADS1115();
-  BLETextServer& bleServer = context.getBLETextServer();
   VNH7070AS& motor1 = context.getLeftChannel().getMotor();
   VNH7070AS& motor2 = context.getRightChannel().getMotor();
   TinyGPSPlus& gpsModule = context.getGPSModule();
@@ -160,9 +177,7 @@ void loop() {
     float current1 = ads1115.readFilteredCurrent(ADS1115Channels::CH2);
     float current2 = ads1115.readFilteredCurrent(ADS1115Channels::CH3);
   
-    // --- Print results ---
-    Serial.printf("Pot1: %.4f V | Pot2: %.4f V | Curr1: %.4f V | Curr2: %.4f V\n",
-                   pos1, pos2, current1, current2);
+    DebugInfoPrinter::printMotorDiagnostics(pos1, pos2, current1, current2);
 
     if (motor1.checkStuck(current1)) {
         Serial.println("MOTOR 1 STUCK!");
@@ -177,17 +192,17 @@ void loop() {
     }
   }
 
-    while (Serial1.available()) {
-      gpsModule.encode(Serial1.read());
-    }
+  while (Serial1.available()) {
+    gpsModule.encode(Serial1.read());
+  }
 
-    if (timeToRefresh) {
-      timeToRefresh = false;
-      if (context.getLeftChannel().isClientInWorkZone()) {
-        CommandHandler::getInstance().handlerGetTaskInfo({}); // pass empty ParsedInstruction
-      }
-      DebugInfoPrinter::printAll(context);
+  if (timeToRefresh) {
+    timeToRefresh = false;
+    if (context.getLeftChannel().isClientInWorkZone()) {
+      CommandHandler::getInstance().handlerGetTaskInfo({}); // pass empty ParsedInstruction
     }
+    DebugInfoPrinter::printAll(context);
+  }
 }
 
 // This function is called by the Arduino core for printf() support

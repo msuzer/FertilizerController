@@ -1,3 +1,12 @@
+// ============================================
+// File: PIController.cpp
+// Purpose: PI controller implementation for flow control
+// Part of: Control Layer
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #include "PIController.h"
 
 float PIController::compute(float setpoint, float measurement) {

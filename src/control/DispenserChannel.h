@@ -1,3 +1,12 @@
+// ============================================
+// File: DispenserChannel.h
+// Purpose: Represents and controls one fertilizer dispenser channel
+// Part of: Control Layer
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #pragma once
 
 #include <stdint.h>
@@ -96,6 +105,7 @@ public:
     void applyPIControl();
     void applyPIControl(float measured);
     void alignToEnd(bool forward = true);
+    void reportErrorFlags(void);
     const float getKgPerDaaInstantaneous(float potVoltage) const;
 
     // Task metrics per channel

@@ -1,6 +1,16 @@
+// ============================================
+// File: DispenserChannel.cpp
+// Purpose: Represents and controls one fertilizer dispenser channel
+// Part of: Control Layer
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #include "DispenserChannel.h"
 #include "gps/GPSProvider.h"
 #include "core/SystemContext.h"
+#include "ble/UserInfoFormatter.h"
 
 float DispenserChannel::tankLevel = 0.0f; // Default tank level
 bool DispenserChannel::clientInWorkZone = false; // Default client work zone status
@@ -99,6 +109,21 @@ void DispenserChannel::checkLowSpeedState() {
     }
 }
 
+void DispenserChannel::reportErrorFlags(void) {
+  static int oldErrorFlags = NO_ERROR;
+  static int counter = 0;
+  int heartBeatPeriod = context->getPrefs().getParams().heartBeatPeriod;
+
+  // error is reported periodically and instantly if it is only NO_ERROR
+  bool reportInstantly = (oldErrorFlags != errorFlags) && (errorFlags == NO_ERROR);
+  if (reportInstantly || (++counter == heartBeatPeriod)) {
+    counter = 0;
+    String packet = UserInfoFormatter::makeErrorInfoPacket(errorFlags, true);
+    context->getCommandHandler().sendBLEPacketChecked(packet);
+  }
+  oldErrorFlags = errorFlags;
+}
+
 void DispenserChannel::updateTaskMetrics() {
   if (!isTaskActive()) {
     return;  // Don't update metrics if not active
@@ -114,8 +139,6 @@ void DispenserChannel::updateTaskMetrics() {
     bool isSpeedOK = (groundSpeedKMPH >= params.minWorkingSpeed);
     bool isFlowOK = (flowRatePerMin > 0);
     const float deltaTime = 1.0f;
-
-    checkLowSpeedState();
 
     if (isSpeedOK && isBoomWidthOK) {
       if (isFlowOK) {

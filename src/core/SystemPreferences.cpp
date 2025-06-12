@@ -1,4 +1,12 @@
-// SystemPreferences.cpp
+// ============================================
+// File: SystemPreferences.cpp
+// Purpose: Manages persistent system preferences
+// Part of: Core Services
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #include "SystemPreferences.h"
 #include "control/DispenserChannel.h"
 #include "core/SystemContext.h"
@@ -19,12 +27,14 @@ const char* SystemPreferences::keyNames[KEY_COUNT] = {
     "left_rateDaa",
     "left_rateMin",
     "left_flowCoeff",
+    "left_boomWidth",
 
     "right_rateDaa",
     "right_rateMin",
     "right_flowCoeff",
+    "right_boomWidth",
 
-    "piKp"
+    "piKp",
     "piKi"
 };
 
@@ -47,11 +57,13 @@ void SystemPreferences::init(SystemContext& ctx) {
     left.setTargetFlowRatePerDaa(prefs.getFloat(keyNames[KEY_LEFT_RATE_DAA], DEFAULT_TARGET_RATE_KG_DAA));
     left.setTargetFlowRatePerMin(prefs.getFloat(keyNames[KEY_LEFT_RATE_MIN], DEFAULT_TARGET_FLOW_PER_MIN));
     left.setFlowCoeff(prefs.getFloat(keyNames[KEY_LEFT_FLOW_COEFF], DEFAULT_FLOW_COEFF));
+    left.setBoomWidth(prefs.getFloat(keyNames[KEY_LEFT_BOOM_WIDTH], DEFAULT_LEFT_BOOM_WIDTH));
 
     auto& right = ctx.getRightChannel();
     right.setTargetFlowRatePerDaa(prefs.getFloat(keyNames[KEY_RIGHT_RATE_DAA], DEFAULT_TARGET_RATE_KG_DAA));
     right.setTargetFlowRatePerMin(prefs.getFloat(keyNames[KEY_RIGHT_RATE_MIN], DEFAULT_TARGET_FLOW_PER_MIN));
     right.setFlowCoeff(prefs.getFloat(keyNames[KEY_RIGHT_FLOW_COEFF], DEFAULT_FLOW_COEFF));
+    right.setBoomWidth(prefs.getFloat(keyNames[KEY_RIGHT_BOOM_WIDTH], DEFAULT_RIGHT_BOOM_WIDTH));
 
     float kp = prefs.getFloat(keyNames[KEY_PI_KP], DEFAULT_KP_VALUE);
     float ki = prefs.getFloat(keyNames[KEY_PI_KI], DEFAULT_KI_VALUE);

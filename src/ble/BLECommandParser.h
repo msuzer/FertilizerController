@@ -1,5 +1,13 @@
-#ifndef BLE_COMMAND_PARSER_H
-#define BLE_COMMAND_PARSER_H
+// ============================================
+// File: BLECommandParser.h
+// Purpose: 
+// Part of: BLE Layer / Communication
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
+#pragma once
 
 #include <string>
 #include <vector>
@@ -49,5 +57,3 @@ private:
     std::vector<CommandEntry> commands;
     bool parseInstruction(const std::string& input, ParsedInstruction& out);
 };
-
-#endif // BLE_COMMAND_PARSER_H

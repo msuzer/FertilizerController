@@ -1,3 +1,12 @@
+// ============================================
+// File: VNH7070AS.h
+// Purpose: Driver for VNH7070AS motor driver
+// Part of: Hardware Abstraction Layer (HAL)
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #pragma once
 
 #include "VNH7070ASPins.h"

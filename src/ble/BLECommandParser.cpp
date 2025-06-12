@@ -1,3 +1,12 @@
+// ============================================
+// File: BLECommandParser.cpp
+// Purpose: 
+// Part of: BLE Layer / Communication
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #include "BLECommandParser.h"
 
 void BLECommandParser::registerCommand(const std::string& name, CommandFunction handler) {

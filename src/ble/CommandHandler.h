@@ -1,5 +1,13 @@
-#ifndef COMMAND_HANDLER_H
-#define COMMAND_HANDLER_H
+// ============================================
+// File: CommandHandler.h
+// Purpose: Handles BLE command parsing and execution
+// Part of: BLE Layer / Communication
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
+#pragma once
 
 #include "BLECommandParser.h"
 #include <Arduino.h>
@@ -23,6 +31,7 @@ public:
     static void handlerGetDeviceInfo(const ParsedInstruction& instr);
     static void handlerGetSpeedInfo(const ParsedInstruction& instr);
     static void handlerGetTaskInfo(const ParsedInstruction& instr);
+    static void handlerGetVersionInfo(const ParsedInstruction& instr);
 
     static void handlerStartNewTask(const ParsedInstruction& instr);
     static void handlerPauseTask(const ParsedInstruction& instr);
@@ -51,5 +60,3 @@ public:
 private:
     static SystemContext* context;
 };
-
-#endif // COMMAND_HANDLER_H

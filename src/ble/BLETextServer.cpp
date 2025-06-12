@@ -1,3 +1,12 @@
+// ============================================
+// File: BLETextServer.cpp
+// Purpose: BLE GATT server for text-based communication
+// Part of: BLE Layer / Communication
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <Preferences.h>

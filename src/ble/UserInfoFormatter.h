@@ -1,3 +1,12 @@
+// ============================================
+// File: UserInfoFormatter.h
+// Purpose: Formats system/user info into BLE-friendly packets
+// Part of: BLE Layer / Communication
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #pragma once
 
 #include <Arduino.h>
@@ -18,8 +27,6 @@ public:
         const char* devUUID;
         const char* dsUUID;
         const char* bleMAC;
-        const char* fwVer;
-        const char* devVer;
     };
 
     struct GPSInfoData {
@@ -56,12 +63,17 @@ public:
     };
 
     // Public API
+    static String makeVersionInfoPacket();
     static String makeTaskInfoPacket(const TaskChannelInfoData& left, const TaskChannelInfoData& right);
     static String makeDeviceInfoPacket(const DeviceInfoData& data);
     static String makeGPSInfoPacket(const GPSInfoData& data);
     static String makePIPacket(const PIInfoData& data);
+    static String makeErrorInfoPacket(uint32_t errorFlags, bool verbose = false);
 
 private:
+    static uint32_t packetCounter;
+
+    static String makePktIdField();
     static String formatFloat(float value);
 
     template<typename T>

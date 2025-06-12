@@ -1,3 +1,12 @@
+// ============================================
+// File: IOConfig.h
+// Purpose: 
+// Part of: Hardware Abstraction Layer (HAL)
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #pragma once
 
 #define VNH7070AS_INA1Pin  25

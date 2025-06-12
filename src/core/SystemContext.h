@@ -1,3 +1,12 @@
+// ============================================
+// File: SystemContext.h
+// Purpose: Main context object, owns all system components
+// Part of: Core Services
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #pragma once
 #include <Preferences.h>
 #include <TinyGPSPlus.h>
@@ -17,12 +26,6 @@
 #include "io/VNH7070AS.h"
 #include "io/ADS1115.h"
 #include "io/DS18B20Sensor.h"
-
-// const char* buildDate = __DATE__;
-// const char* buildTime = __TIME__;
-
-#define FIRMWARE_VERSION                __DATE__
-#define DEVICE_VERSION                  "29.05.2025"
 
 class SystemContext {
 public:

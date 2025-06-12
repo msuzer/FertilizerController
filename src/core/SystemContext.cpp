@@ -1,3 +1,12 @@
+// ============================================
+// File: SystemContext.cpp
+// Purpose: Main context object, owns all system components
+// Part of: Core Services
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #include "SystemContext.h"
 #include <TinyGPSPlus.h>
 
@@ -29,6 +38,12 @@ void SystemContext::init() {
     prefs.init(*this);
     leftChannel.init(this, leftChannelPins);
     rightChannel.init(this, rightChannelPins);
+
+    // Force both channels to STOPPED
+    getLeftChannel().setTaskState(UserTaskState::Stopped);
+    getRightChannel().setTaskState(UserTaskState::Stopped);
+
+    printf("[TASK INIT] Forced task state to STOPPED on boot.\n");
 
     commandHandler.setContext(this);
     commandHandler.registerHandlers();

@@ -1,3 +1,12 @@
+// ============================================
+// File: BLETextServer.h
+// Purpose: BLE GATT server for text-based communication
+// Part of: BLE Layer / Communication
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #pragma once
 #include <NimBLEDevice.h>
 

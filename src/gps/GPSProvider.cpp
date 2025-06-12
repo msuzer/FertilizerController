@@ -1,3 +1,12 @@
+// ============================================
+// File: GPSProvider.cpp
+// Purpose: Manages GPS interface and provides GPS data
+// Part of: GPS Layer
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #include "GPSProvider.h"
 
 GPSProvider& GPSProvider::getInstance() {

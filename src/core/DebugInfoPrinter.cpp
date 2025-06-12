@@ -1,4 +1,14 @@
+// ============================================
+// File: DebugInfoPrinter.cpp
+// Purpose: Provides centralized system debug printing functions
+// Part of: Core Services
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #include "DebugInfoPrinter.h"
+#include "version.h"
 #include <cstdio>
 
 void DebugInfoPrinter::printAll(SystemContext& context)
@@ -211,4 +221,25 @@ void DebugInfoPrinter::printResetReason(const char* cpuLabel, int reason)
     }
 
     printf("[RESET] %s: %s\n", cpuLabel, reasonStr);
+}
+
+void DebugInfoPrinter::printMotorDiagnostics(float pos1, float pos2, float current1, float current2) {
+    printf("[MOTORS] Pot1: %.4f V | Pot2: %.4f V | Curr1: %.4f V | Curr2: %.4f V\n",
+           pos1, pos2, current1, current2);
+}
+
+void DebugInfoPrinter::printTempSensorStatus(DS18B20Sensor& sensor) {
+    if (sensor.isReady()) {
+        float temp = sensor.getTemperatureC();
+        String id = sensor.getSensorID();
+
+        printf("[TEMP SENSOR] DS18B20 found | SensorID: %s | Temperature: %.2f °C\n", id.c_str(), temp);
+    } else {
+        printf("[TEMP SENSOR] DS18B20 not found\n");
+    }
+}
+
+void DebugInfoPrinter::printVersionInfo() {
+    printf("[VERSION] Firmware: %s | Device: %s | Build: %s %s\n",
+           FIRMWARE_VERSION, DEVICE_VERSION, BUILD_DATE, BUILD_TIME);
 }

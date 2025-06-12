@@ -1,4 +1,12 @@
-// SystemPreferences.h
+// ============================================
+// File: SystemPreferences.h
+// Purpose: Manages persistent system preferences
+// Part of: Core Services
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #pragma once
 #include <Preferences.h>
 
@@ -8,6 +16,8 @@ class SystemContext; // Forward declaration
 #define DEFAULT_TARGET_RATE_KG_DAA      20.0f
 #define DEFAULT_TARGET_FLOW_PER_MIN     15.0f
 #define DEFAULT_FLOW_COEFF              1.0f
+#define DEFAULT_LEFT_BOOM_WIDTH         0.0f
+#define DEFAULT_RIGHT_BOOM_WIDTH        0.0f
 #define DEFAULT_MIN_WORKING_SPEED       1.0f
 #define DEFAULT_AUTO_REFRESH_PERIOD     4
 #define DEFAULT_HEARTBEAT_PERIOD        25
@@ -27,9 +37,11 @@ class SystemContext; // Forward declaration
         KEY_LEFT_RATE_DAA,
         KEY_LEFT_RATE_MIN,
         KEY_LEFT_FLOW_COEFF,
+        KEY_LEFT_BOOM_WIDTH,
         KEY_RIGHT_RATE_DAA,
         KEY_RIGHT_RATE_MIN,
         KEY_RIGHT_FLOW_COEFF,
+        KEY_RIGHT_BOOM_WIDTH,
         KEY_PI_KP,
         KEY_PI_KI,
         KEY_COUNT

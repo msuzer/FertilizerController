@@ -1,3 +1,12 @@
+// ============================================
+// File: CommandHandler.cpp
+// Purpose: Handles BLE command parsing and execution
+// Part of: BLE Layer / Communication
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #include <Arduino.h>
 #include "CommandHandler.h"
 #include "BLECommandParser.h"
@@ -14,6 +23,7 @@ static constexpr const char* CMD_SET_BLE_DEVICE_NAME        = "setBLEDevName";
 static constexpr const char* CMD_GET_DEVICE_INFO            = "getDeviceInfo";
 static constexpr const char* CMD_GET_SPEED_INFO             = "getSpeedInfo";
 static constexpr const char* CMD_GET_TASK_INFO              = "getTaskInfo";
+static constexpr const char* CMD_GET_VERSION_INFO           = "getVersionInfo";
 
 static constexpr const char* CMD_START_NEW_TASK             = "startNewTask";
 static constexpr const char* CMD_PAUSE_TASK                 = "pauseTask";
@@ -53,6 +63,7 @@ void CommandHandler::registerHandlers(void) {
     parser.registerCommand(CMD_GET_DEVICE_INFO, handlerGetDeviceInfo);
     parser.registerCommand(CMD_GET_SPEED_INFO, handlerGetSpeedInfo);
     parser.registerCommand(CMD_GET_TASK_INFO, handlerGetTaskInfo);
+    parser.registerCommand(CMD_GET_VERSION_INFO, handlerGetVersionInfo);
 
     parser.registerCommand(CMD_START_NEW_TASK, handlerStartNewTask);
     parser.registerCommand(CMD_PAUSE_TASK, handlerPauseTask);
@@ -91,9 +102,14 @@ void CommandHandler::sendBLEPacketChecked(const String& packet) {
 
 void CommandHandler::handlerSetBLEDeviceName(const ParsedInstruction &instr) {
     if (instr.postParamType == ParamType::STRING) {
-        printf("New BLE Name = %s\n", instr.postParamStr);
+        printf("[BLE] New BLE Name = %s\n", instr.postParamStr);
         context->getBLETextServer().setDeviceName(instr.postParamStr);
     }
+}
+
+void CommandHandler::handlerGetVersionInfo(const ParsedInstruction &instr) {
+    String packet = UserInfoFormatter::makeVersionInfoPacket();
+    sendBLEPacketChecked(packet);
 }
 
 void CommandHandler::handlerGetDeviceInfo(const ParsedInstruction& instr) {
@@ -101,9 +117,7 @@ void CommandHandler::handlerGetDeviceInfo(const ParsedInstruction& instr) {
         context->getBLETextServer().getDeviceName(),
         context->getEspID().c_str(),
         context->getBoardID().c_str(),
-        context->getBleMAC().c_str(),
-        FIRMWARE_VERSION,
-        DEVICE_VERSION
+        context->getBleMAC().c_str()
     };
 
     String packet = UserInfoFormatter::makeDeviceInfoPacket(devData);

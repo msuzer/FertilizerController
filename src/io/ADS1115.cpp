@@ -1,3 +1,13 @@
+// ============================================
+// File: ADS1115.cpp
+// Purpose: Driver for ADS1115 ADC with filtering support
+// Part of: Hardware Abstraction Layer (HAL)
+// Dependencies: Wire, ADS1115
+//
+// License: Proprietary License
+// Author: Mehmet H Suzer
+// Date: 13 June 2025
+// ============================================
 #include "ADS1115.h"
 #include "io/CircularBuffer.h"
 

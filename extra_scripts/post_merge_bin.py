@@ -1,3 +1,4 @@
+
 Import("env")
 import os
 import subprocess
@@ -13,8 +14,8 @@ bootloader = os.path.join(build_dir, "bootloader.bin")
 partitions = os.path.join(build_dir, "partitions.bin")
 firmware = os.path.join(build_dir, "firmware.bin")
 
-# Path to the header file containing FIRMWARE_VERSION
-system_context_header = os.path.join(project_dir, "src/core", "SystemContext.h")  # Adjust if header is in a different folder
+# Path to the header file containing FIRMWARE_VERSION and DEVICE_VERSION
+system_context_header = os.path.join(project_dir, "src/core", "version.h")
 
 # Use esptool.py from PlatformIO's tool directory
 esptool_path = os.path.join(
@@ -27,17 +28,30 @@ def get_firmware_version():
     try:
         with open(system_context_header, 'r') as f:
             content = f.read()
-            match = re.search(r'#define\s+FIRMWARE_VERSION\s+([0-9.]+)', content)
+            match = re.search(r'#define\s+FIRMWARE_VERSION\s+"([^"]+)"', content)
             if match:
-                version = int(match.group(1), 16)
+                version = match.group(1)
                 print(f"Detected FIRMWARE_VERSION = {version}")
                 return version
     except Exception as e:
         print("Could not read FIRMWARE_VERSION from header:", e)
-    return None
+    return "unknown"
 
-def clean_previous_bins(prefix):
-    pattern = os.path.join(project_dir, f"{prefix}_*.bin")
+def get_device_version():
+    try:
+        with open(system_context_header, 'r') as f:
+            content = f.read()
+            match = re.search(r'#define\s+DEVICE_VERSION\s+"([^"]+)"', content)
+            if match:
+                device_version = match.group(1)
+                print(f"Detected DEVICE_VERSION = {device_version}")
+                return device_version
+    except Exception as e:
+        print("Could not read DEVICE_VERSION from header:", e)
+    return "unknown"
+
+def clean_previous_bins():
+    pattern = os.path.join(project_dir, "agro_fertilizer_fw_*.bin")
     old_files = glob.glob(pattern)
     for file_path in old_files:
         try:
@@ -48,22 +62,22 @@ def clean_previous_bins(prefix):
 
 def merge_bin_files(source, target, env):
     version = get_firmware_version()
+    device_version = get_device_version()
 
-    # board_label = f"agro_fertilizer_fw_{version}"
-    board_label = f"agro_fertilizer_fw"
+    board_label = f"agro_fertilizer_fw_v{version}_{device_version}"
 
-    # Format: MM_DD_YYYY
+    # Format: DD_MM_YYYY
     date_str = datetime.now().strftime("%d_%m_%Y")
     output_filename = f"{board_label}_{date_str}.bin"
 
     final_output = os.path.join(project_dir, output_filename)
 
-    clean_previous_bins(board_label)
+    clean_previous_bins()
 
     print("Merging binaries...")
 
     cmd = [
-        sys.executable,  # Python executable
+        sys.executable,
         esptool_path,
         "--chip", "esp32", "merge_bin",
         "-o", final_output,
