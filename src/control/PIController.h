@@ -16,7 +16,7 @@ public:
     void setPIKi(float value) { _Ki = value; }
     float getError(void) const { return error; }
     bool isControlSignalChanged(void);
-    int getControlSignal(void) {return controlSignal; }
+    const int getControlSignal(void) const {return controlSignal; }
 
     void setParams(float Kp, float Ki) {_Kp = Kp; _Ki = Ki; }
     float compute(float setpoint, float measurement);

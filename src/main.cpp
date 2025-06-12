@@ -10,6 +10,7 @@
 #include "core/SystemContext.h"
 #include "core/SystemPreferences.h"
 #include "gps/GPSProvider.h"
+#include "core/DebugInfoPrinter.h"
 
 #if CONFIG_IDF_TARGET_ESP32  // ESP32/PICO-D4
 #include "esp32/rom/rtc.h"
@@ -30,11 +31,8 @@ bool notifyDeferredTasks = false;
 static bool timeToRefresh = false;
 
 void die(const char* message);
-void printResetReason(int reason);
 static void taskLoopUpdateCallback(void *p);
 static void controlLoopUpdateCallback(void *p);
-void printRealTimeData(void);
-static void printErrorCode(int errorCode);
 
 // periodic callback on 1 second interval
 static void taskLoopUpdateCallback(void *p) {
@@ -101,11 +99,8 @@ void setup() {
 
   context.writeRGBLEDs(LOW, HIGH, LOW);
 
-  printf("CPU0 reset reason: ");
-  printResetReason(rtc_get_reset_reason(0));
-
-  printf("CPU1 reset reason: ");
-  printResetReason(rtc_get_reset_reason(1));
+  DebugInfoPrinter::printResetReason("CPU0", rtc_get_reset_reason(0));
+  DebugInfoPrinter::printResetReason("CPU1", rtc_get_reset_reason(1));
 
   esp_timer_create_args_t timer_args1 = {
     .callback = taskLoopUpdateCallback,
@@ -191,91 +186,13 @@ void loop() {
       if (context.getLeftChannel().isClientInWorkZone()) {
         CommandHandler::getInstance().handlerGetTaskInfo({}); // pass empty ParsedInstruction
       }
-      printRealTimeData();
+      DebugInfoPrinter::printAll(context);
     }
-}
-
-void printRealTimeData(void) {
-  printf("[LOG] Time: %lu | TargetFlow: %.2f | RealFlow: %.2f | Error: %.2f | CtrlSig: %d | "
-    "Distance: %.2f | AreaPerSec: %.2f | Liquid: %.2f\n",
-     millis(),
-     0,
-     0,
-     0,
-     0,
-     0,
-     0,
-     0
-   );
-
-   context.getGPSProvider().printGPSData();
-}
-
-static void printErrorCode(int errorCode) {
-  printf("Error Code: %08X Message: ", errorCode);
-
-  if (errorCode & LIQUID_TANK_EMPTY) {
-    printf("Liquid Tank Empty!\n");
-  }
-  if (errorCode & INSUFFICIENT_FLOW) {
-    printf("Insufficient Flow!\n");
-  }
-  if (errorCode & FLOW_NOT_SETTLED) {
-    printf("Flow Not Settled!\n");
-  }
-  if (errorCode & BATTERY_LOW) {
-    printf("Battery Low!\n");
-  }
-  if (errorCode & NO_SATELLITE_CONNECTED) {
-    printf("No Satellite Connected!\n");
-  }
-  if (errorCode & INVALID_SATELLITE_INFO) {
-    printf("Invalid Satellite Info!\n");
-  }
-  if (errorCode & INVALID_GPS_LOCATION) {
-    printf("Invalid GPS Location!\n");
-  }
-  if (errorCode & INVALID_GPS_SPEED) {
-    printf("Invalid GPS Speed!\n");
-  }
-  if (errorCode & INVALID_PARAM_COUNT) {
-    printf("Invalid Param Count!\n");
-  }
-  if (errorCode & MESSAGE_PARSE_ERROR) {
-    printf("Message Parse Error!\n");
-  }
-  if (errorCode & HARDWARE_ERROR) {
-    printf("Hardware Error!\n");
-  }
-  if (errorCode == 0) {
-    printf("No Error!\n");
-  }
 }
 
 // This function is called by the Arduino core for printf() support
 extern "C" {
   int _write(int fd, const void* data, size_t size) {
     return Serial.write((const uint8_t*)data, size);
-  }
-}
-
-void printResetReason(int reason) {
-  switch (reason) {
-    case 1:  printf("Vbat power on reset\n"); break;
-    case 3:  printf("Software reset digital core\n"); break;
-    case 4:  printf("Legacy watch dog reset digital core\n"); break;
-    case 5:  printf("Deep Sleep reset digital core\n"); break;
-    case 6:  printf("Reset by SLC module, reset digital core\n"); break;
-    case 7:  printf("Timer Group0 Watch dog reset digital core\n"); break;
-    case 8:  printf("Timer Group1 Watch dog reset digital core\n"); break;
-    case 9:  printf("RTC Watch dog Reset digital core\n"); break;
-    case 10: printf("Instrusion tested to reset CPU\n"); break;
-    case 11: printf("Time Group reset CPU\n"); break;
-    case 12: printf("Software reset CPU\n"); break;
-    case 13: printf("RTC Watch dog Reset CPU\n"); break;
-    case 14: printf("for APP CPU, reset by PRO CPU\n"); break;
-    case 15: printf("Reset when the vdd voltage is not stable\n"); break;
-    case 16: printf("RTC Watch dog reset digital core and rtc module\n"); break;
-    default: printf("Unspecified error caused Reset\n");
   }
 }

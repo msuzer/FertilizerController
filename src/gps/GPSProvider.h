@@ -26,7 +26,6 @@ public:
     Location_t getLocation() const;
     float getSpeed(bool mps = false) const;
     int getSatelliteCount() const;
-    void printGPSData(void);
 private:
     TinyGPSPlus* gpsModule = nullptr;
 };
