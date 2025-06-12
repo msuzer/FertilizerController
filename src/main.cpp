@@ -1,10 +1,10 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <TinyGPSPlus.h>
+#include "ble/BLETextServer.h"
 #include "io/VNH7070AS.h"
 #include "io/ADS1115.h"
 #include "control/PIController.h"
-#include "ble/BLETextServer.h"
 #include "ble/BLECommandParser.h"
 #include "io/DS18B20Sensor.h"
 #include "core/SystemContext.h"

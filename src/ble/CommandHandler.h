@@ -2,6 +2,7 @@
 #define COMMAND_HANDLER_H
 
 #include "BLECommandParser.h"
+#include <Arduino.h>
 
 class SystemContext; // Forward declaration
 
@@ -15,6 +16,7 @@ public:
     inline void setContext(SystemContext* ctx) { context = ctx; }
 
     void registerHandlers();
+    static void sendBLEPacketChecked(const String& packet);
 
     // Handlers
     static void handlerSetBLEDeviceName(const ParsedInstruction& instr);

@@ -6,6 +6,9 @@
 #include "gps/GPSProvider.h"
 #include "control/PIController.h"
 #include "core/SystemPreferences.h"
+#include "ble/UserInfoFormatter.h"
+
+#define MAX_BLE_PACKET_SIZE 244  // Example BLE max size in bytes (adjust as needed)
 
 static constexpr const char* CMD_SET_BLE_DEVICE_NAME        = "setBLEDevName";
 static constexpr const char* CMD_GET_DEVICE_INFO            = "getDeviceInfo";
@@ -74,6 +77,18 @@ void CommandHandler::registerHandlers(void) {
     parser.sortCommands();
 }
 
+void CommandHandler::sendBLEPacketChecked(const String& packet) {
+    if (packet.length() > MAX_BLE_PACKET_SIZE)
+    {
+        Serial.printf("[WARN] BLE packet too long! Length=%d, Max=%d. Not sending.\n",
+                      packet.length(), MAX_BLE_PACKET_SIZE);
+        return;
+    }
+
+    Serial.println(packet);
+    context->getBLETextServer().notify(packet.c_str());
+}
+
 void CommandHandler::handlerSetBLEDeviceName(const ParsedInstruction &instr) {
     if (instr.postParamType == ParamType::STRING) {
         printf("New BLE Name = %s\n", instr.postParamStr);
@@ -82,112 +97,68 @@ void CommandHandler::handlerSetBLEDeviceName(const ParsedInstruction &instr) {
 }
 
 void CommandHandler::handlerGetDeviceInfo(const ParsedInstruction& instr) {
-    char jsonBuf[512];
-    const char* bleName = context->getBLETextServer().getDeviceName();
-    const char* devUUID = context->getEspID().c_str();
-    const char* sensorUUID = context->getBoardID().c_str();
-    const char* mac = context->getBleMAC().c_str();
-    const char* fwVersion =  FIRMWARE_VERSION;
-    const char* devVersion = DEVICE_VERSION;
+    UserInfoFormatter::DeviceInfoData devData = {
+        context->getBLETextServer().getDeviceName(),
+        context->getEspID().c_str(),
+        context->getBoardID().c_str(),
+        context->getBleMAC().c_str(),
+        FIRMWARE_VERSION,
+        DEVICE_VERSION
+    };
 
-    snprintf(jsonBuf, sizeof(jsonBuf),
-        "{\n"
-        "  \"devInfo\": {\n"
-        "    \"bleName\": \"%s\",\n"
-        "    \"devUUID\": \"%s\",\n"
-        "    \"dsUUID\": \"%s\",\n"
-        "    \"bleMAC\": \"%s\",\n"
-        "    \"fwVer\": \"%s\",\n"
-        "    \"devVer\": \"%s\"\n"
-        "  }\n"
-        "}",
-        bleName, devUUID, sensorUUID, mac, fwVersion, devVersion
-    );
-
-    Serial.println(jsonBuf);
-    context->getBLETextServer().notify(jsonBuf);
+    String packet = UserInfoFormatter::makeDeviceInfoPacket(devData);
+    sendBLEPacketChecked(packet);
 }
 
 void CommandHandler::handlerGetSpeedInfo(const ParsedInstruction& instr) {
-    char jsonBuf[512];
-    const SystemParams& params = context->getPrefs().getParams();
-    const GPSProvider & gpsProvider = context->getGPSProvider();
-
-    const char* speedSrc = params.speedSource.c_str();
-    float minSpeed = params.minWorkingSpeed;
-    float simSpeed = params.simSpeed;
-    float gpsSpeed = gpsProvider.getSpeed();
-    int sats = gpsProvider.getSatelliteCount();
+    const GPSProvider& gpsProvider = context->getGPSProvider();
     Location_t loc = gpsProvider.getLocation();
+    const SystemParams& params = context->getPrefs().getParams();
 
-    snprintf(jsonBuf, sizeof(jsonBuf),
-        "{\n"
-        "  \"gpsInfo\": {\n"
-        "    \"spdSrc\": \"%s\",\n"
-        "    \"minSpd\": %.2f,\n"
-        "    \"simSpd\": %.2f,\n"
-        "    \"gpsSpd\": %.2f,\n"
-        "    \"lat\": %.6f,\n"
-        "    \"lng\": %.6f,\n"
-        "    \"sats\": %d\n"
-        "  }\n"
-        "}",
-        speedSrc, minSpeed, simSpeed, gpsSpeed, loc.lat, loc.lng, sats
-    );
+    UserInfoFormatter::GPSInfoData gpsData = {
+        params.speedSource.c_str(),
+        params.minWorkingSpeed,
+        params.simSpeed,
+        gpsProvider.getSpeed(),
+        (float) loc.lat,
+        (float) loc.lng,
+        gpsProvider.getSatelliteCount()
+    };
 
-    Serial.println(jsonBuf);
-    context->getBLETextServer().notify(jsonBuf);
+    String packet = UserInfoFormatter::makeGPSInfoPacket(gpsData);
+    sendBLEPacketChecked(packet);
 }
 
 void CommandHandler::handlerGetTaskInfo(const ParsedInstruction& instr) {
-    char jsonBuf[512];
-    float flowDaaSet = context->getLeftChannel().getTargetFlowRatePerDaa();
-    float flowMinSet = context->getLeftChannel().getTargetFlowRatePerMin();
-    float flowDaaReal = context->getLeftChannel().getRealFlowRatePerDaa();
-    float flowMinReal = context->getLeftChannel().getRealFlowRatePerMin();
-    int tankLevel = DispenserChannel::getTankLevel();
-    float areaDone = context->getLeftChannel().getAreaCompleted();          // daa
-    int duration = context->getLeftChannel().getTaskDuration();            // seconds
-    float consumed = context->getLeftChannel().getLiquidConsumed();         // liters
+    DispenserChannel& left = context->getLeftChannel();
+    DispenserChannel& right = context->getRightChannel();
+        
+    UserInfoFormatter::TaskChannelInfoData leftData = {
+        left.getTargetFlowRatePerDaa(), left.getTargetFlowRatePerMin(),
+        left.getRealFlowRatePerDaa(), left.getRealFlowRatePerMin(),
+        (int) DispenserChannel::getTankLevel(),
+        left.getAreaCompleted(), left.getTaskDuration(), left.getLiquidConsumed()
+    };
 
-    snprintf(jsonBuf, sizeof(jsonBuf),
-        "{\n"
-        "  \"taskInfo\": {\n"
-        "    \"flowDaaSet\": %.2f,\n"
-        "    \"flowMinSet\": %.2f,\n"
-        "    \"flowDaaReal\": %.2f,\n"
-        "    \"flowMinReal\": %.2f,\n"
-        "    \"tankLevel\": %d,\n"
-        "    \"areaDone\": %.2f,\n"
-        "    \"duration\": %d,\n"
-        "    \"consumed\": %.2f\n"
-        "  }\n"
-        "}",
-        flowDaaSet, flowMinSet, flowDaaReal, flowMinReal,
-        tankLevel, areaDone, duration, consumed
-    );
+    UserInfoFormatter::TaskChannelInfoData rightData = {
+        right.getTargetFlowRatePerDaa(), right.getTargetFlowRatePerMin(),
+        right.getRealFlowRatePerDaa(), right.getRealFlowRatePerMin(),
+        (int) DispenserChannel::getTankLevel(),
+        right.getAreaCompleted(), right.getTaskDuration(), right.getLiquidConsumed()
+    };
 
-    Serial.println(jsonBuf);
-    context->getBLETextServer().notify(jsonBuf);
+    String packet = UserInfoFormatter::makeTaskInfoPacket(leftData, rightData);
+    sendBLEPacketChecked(packet);
 }
 
 void CommandHandler::handlerReportPIParams(const ParsedInstruction& instr) {
-    char jsonBuf[512];
-    float piKp = context->getLeftChannel().getPIKp();
-    float piKi = context->getLeftChannel().getPIKi();
+    UserInfoFormatter::PIInfoData piData = {
+        context->getLeftChannel().getPIKp(),
+        context->getLeftChannel().getPIKi()
+    };
 
-    snprintf(jsonBuf, sizeof(jsonBuf),
-        "{\n"
-        "  \"piInfo\": {\n"
-        "    \"piKp\": %.2f,\n"
-        "    \"piKi\": %.2f,\n"
-        "  }\n"
-        "}",
-        piKp, piKi
-    );
-
-    Serial.println(jsonBuf);
-    context->getBLETextServer().notify(jsonBuf);
+    String packet = UserInfoFormatter::makePIPacket(piData);
+    sendBLEPacketChecked(packet);
 }
 
 void CommandHandler::handlerStartNewTask(const ParsedInstruction& instr) {
