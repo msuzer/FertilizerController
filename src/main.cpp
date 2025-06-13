@@ -144,8 +144,8 @@ void setup() {
 
 void loop() {
   ADS1115& ads1115 = context.getADS1115();
-  VNH7070AS& motor1 = context.getLeftChannel().getMotor();
-  VNH7070AS& motor2 = context.getRightChannel().getMotor();
+  VNH7070AS& leftMotor = context.getLeftChannel().getMotor();
+  VNH7070AS& rightMotor = context.getRightChannel().getMotor();
   TinyGPSPlus& gpsModule = context.getGPSModule();
 
   if (notifyDeferredTasks) {
@@ -164,14 +164,14 @@ void loop() {
   
     DebugInfoPrinter::printMotorDiagnostics(pos1, pos2, current1, current2);
 
-    if (motor1.checkStuck(current1)) {
-        LogUtils::warn("[MOTOR] M1 STUCK!\n");
+    if (leftMotor.checkStuck(current1)) {
+        LogUtils::warn("[MOTOR] Left Motor STUCK!\n");
         context.getLeftChannel().setError(MOTOR_STUCK);
         context.getLeftChannel().setTaskState(UserTaskState::Paused);
     }
 
-    if (motor2.checkStuck(current2)) {
-        LogUtils::warn("[MOTOR] M2 STUCK!\n");
+    if (rightMotor.checkStuck(current2)) {
+        LogUtils::warn("[MOTOR] Right Motor STUCK!\n");
         context.getRightChannel().setError(MOTOR_STUCK);
         context.getRightChannel().setTaskState(UserTaskState::Paused);
     }
