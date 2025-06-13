@@ -50,8 +50,13 @@ enum class UserTaskState {
 };
 
 class DispenserChannel {
+    friend class SystemContext; // Allow SystemContext to access private members
 public:
-    DispenserChannel(String name = "") : channelName(name) {channelIndex = (name == "Left") ? ADS1115Channels::CH0 : ADS1115Channels::CH1; }
+    DispenserChannel(const DispenserChannel&) = delete;
+    DispenserChannel& operator=(const DispenserChannel&) = delete;
+    DispenserChannel(DispenserChannel&&) = delete;
+    DispenserChannel& operator=(DispenserChannel&&) = delete;
+
     void init(SystemContext* ctx, const VNH7070ASPins& motorPins);
 
     // Setters
@@ -134,6 +139,8 @@ public:
     void setBackwardLimitVoltage(float v) { backwardLimitVoltage = v; }
     void setAlignSpeed(int speed) { alignSpeed = speed; }
 private:
+    DispenserChannel(String name = "") : channelName(name) {channelIndex = (name == "Left") ? ADS1115Channels::CH0 : ADS1115Channels::CH1; }
+
     String channelName;
     int channelIndex = -1; // Index in the context channels array
     static SystemContext* context;

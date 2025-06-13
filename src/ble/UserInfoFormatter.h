@@ -14,8 +14,7 @@
 #include "core/SystemPreferences.h"
 #include "control/DispenserChannel.h"
 
-class UserInfoFormatter
-{
+class UserInfoFormatter {
 public:
     static constexpr const char* PACKET_VERSION = "v1|";
 

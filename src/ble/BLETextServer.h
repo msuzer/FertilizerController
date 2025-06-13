@@ -17,14 +17,19 @@ typedef const char* (*BLEReadCallback)(void);
 typedef void (*BLEConnCallback)(void);
 
 class BLETextCallbacks;
+class SystemContext;  // Forward declaration for SystemContext
 
 class BLETextServer {
     friend class BLETextCallbacks;  // Allow access for callback handling
+    friend class SystemContext;  // Allow SystemContext to access private members
 
 public:
     static constexpr size_t BUFFER_SIZE = 256;
 
-    BLETextServer(const char* defaultName = DEFAULT_BLE_DEVICE_NAME);
+    BLETextServer(const BLETextServer&) = delete;
+    BLETextServer& operator=(const BLETextServer&) = delete;
+    BLETextServer(BLETextServer&&) = delete;
+    BLETextServer& operator=(BLETextServer&&) = delete;
 
     void onWrite(BLEWriteCallback cb);
     void onRead(BLEReadCallback cb);
@@ -47,6 +52,7 @@ public:
     const char* getReceived();
 
 private:
+    BLETextServer(const char* defaultName = DEFAULT_BLE_DEVICE_NAME);
     void handleWrite(const char* data, size_t len);
     void swapBuffers();
 

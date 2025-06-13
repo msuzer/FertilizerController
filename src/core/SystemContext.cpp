@@ -9,6 +9,8 @@
 // ============================================
 #include "SystemContext.h"
 #include <TinyGPSPlus.h>
+#include "core/DebugInfoPrinter.h"
+#include "core/LogUtils.h"
 
 // BLE Callback Implementations
 static void onWriteCallback(const char* message, size_t len);
@@ -30,7 +32,7 @@ void SystemContext::init() {
     bleMAC = readBLEMAC();
     boardID = readDS18B20ID();
 
-    printf("Chip ID: %s | BLE MAC: %s | Board ID: %s\n", espID.c_str(), bleMAC.c_str(), boardID.c_str());
+    DebugInfoPrinter::printDeviceIdentifiers(*this);
 
     ads1115.init(ADS1115_I2C_ADDRESS, adsPins);
     ads1115.setGain(ADS1115::Gain::FSR_4_096V); // Optional: Set gain
@@ -43,7 +45,7 @@ void SystemContext::init() {
     getLeftChannel().setTaskState(UserTaskState::Stopped);
     getRightChannel().setTaskState(UserTaskState::Stopped);
 
-    printf("[TASK INIT] Forced task state to STOPPED on boot.\n");
+    LogUtils::warn("[TASK INIT] Forced task state to STOPPED on boot.\n");
 
     commandHandler.setContext(this);
     commandHandler.registerHandlers();
@@ -73,8 +75,7 @@ String SystemContext::readBLEMAC() {
 }
 
 String SystemContext::readDS18B20ID() {
-    auto& sensor = DS18B20Sensor::getInstance();
-    return sensor.isReady() ? sensor.getSensorID() : "DS18B20 Not Found";
+    return tempSensor.isReady() ? tempSensor.getSensorID() : "DS18B20 Not Found";
 }
 
 float SystemContext::getGroundSpeed(bool useSim) const {
@@ -96,7 +97,7 @@ void SystemContext::writeRGBLEDs(uint8_t chR, uint8_t chG, uint8_t chB) {
 
 static void onWriteCallback(const char* message, size_t len) {
     if (message != nullptr) {
-      Serial.printf("Received: %.*s\n", len, message);
+      LogUtils::info("Received: %.*s\n", len, message);
       SystemContext::instance().getBLECommandParser().dispatchInstruction(message);
     }
 }
@@ -107,10 +108,10 @@ static const char* onReadCallback() {
 
 static void onConnectCallback() {
   // writeRGBLEDs(LOW, LOW, HIGH);
-  Serial.println("Client connected!");
+  LogUtils::info("Client connected!\n");
 }
 
 static void onDisconnectCallback() {
   // writeRGBLEDs(LOW, HIGH, LOW);
-  Serial.println("Client disconnected!");
+  LogUtils::info("Client disconnected!\n");
 }

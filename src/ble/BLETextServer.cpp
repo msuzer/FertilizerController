@@ -11,6 +11,7 @@
 #include <NimBLEDevice.h>
 #include <Preferences.h>
 #include "BLETextServer.h"
+#include "core/LogUtils.h"
 
 #define BLE_SERVICE_UUID      "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 #define BLE_CHAR_WRITE_UUID   "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
@@ -61,6 +62,7 @@ void BLETextServer::setDeviceName(const char* name, bool persist) {
     _deviceName = name;
     if (persist) {
         prefs.putString("devicename", name);
+        LogUtils::info("[BLE] New BLE Name = %s\n", name);
     }
 }
 

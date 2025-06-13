@@ -52,8 +52,6 @@ constexpr uint16_t ADS1115_DR_TABLE[] = {
     0x0000, 0x0020, 0x0040, 0x0060, 0x0080, 0x00A0, 0x00C0, 0x00E0
 };
 
-ADS1115::ADS1115(TwoWire& wire) : _wire(&wire) {}
-
 bool ADS1115::init(const uint8_t i2c_address, const ADS1115Pins & pins) {
     _i2cAddress = i2c_address;
     _wire->begin(pins.SDA, pins.SCL);

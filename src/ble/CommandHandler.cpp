@@ -16,8 +16,11 @@
 #include "control/PIController.h"
 #include "core/SystemPreferences.h"
 #include "ble/UserInfoFormatter.h"
+#include "core/LogUtils.h"
 
 #define MAX_BLE_PACKET_SIZE 244  // Example BLE max size in bytes (adjust as needed)
+
+static constexpr const char* CMD_SET_LOG_LEVEL              = "setLogLevel";
 
 static constexpr const char* CMD_SET_BLE_DEVICE_NAME        = "setBLEDevName";
 static constexpr const char* CMD_GET_DEVICE_INFO            = "getDeviceInfo";
@@ -51,14 +54,11 @@ static constexpr const char* CMD_REPORT_USER_PARAMS         = "reportUserParams"
 
 SystemContext* CommandHandler::context = nullptr;
 
-CommandHandler& CommandHandler::getInstance() {
-    static CommandHandler instance;
-    return instance;
-}
-
 // when adding new commands, consider increasing 'MAX_COMMANDS' in BLECommandParser
 void CommandHandler::registerHandlers(void) {
-    BLECommandParser parser = context->getBLECommandParser();
+    BLECommandParser& parser = context->getBLECommandParser();
+    parser.registerCommand(CMD_SET_LOG_LEVEL, handlerSetLogLevel);
+
     parser.registerCommand(CMD_SET_BLE_DEVICE_NAME, handlerSetBLEDeviceName);
     parser.registerCommand(CMD_GET_DEVICE_INFO, handlerGetDeviceInfo);
     parser.registerCommand(CMD_GET_SPEED_INFO, handlerGetSpeedInfo);
@@ -89,9 +89,8 @@ void CommandHandler::registerHandlers(void) {
 }
 
 void CommandHandler::sendBLEPacketChecked(const String& packet) {
-    if (packet.length() > MAX_BLE_PACKET_SIZE)
-    {
-        Serial.printf("[WARN] BLE packet too long! Length=%d, Max=%d. Not sending.\n",
+    if (packet.length() > MAX_BLE_PACKET_SIZE) {
+        LogUtils::warn("[BLE] packet too long! Length=%d, Max=%d. Not sending.\n",
                       packet.length(), MAX_BLE_PACKET_SIZE);
         return;
     }
@@ -100,9 +99,24 @@ void CommandHandler::sendBLEPacketChecked(const String& packet) {
     context->getBLETextServer().notify(packet.c_str());
 }
 
+void CommandHandler::handlerSetLogLevel(const ParsedInstruction& instr) {
+    if (instr.postParamType == ParamType::INT) {
+        int level = instr.postParam.i;
+        level = constrain(instr.postParam.i, static_cast<int>(LogLevel::Silent), static_cast<int>(LogLevel::Verbose));  // Map to LogUtils::LogLevel enum
+
+        LogUtils::setLogLevel(static_cast<LogLevel>(level));
+
+        // Save to prefs (optional)
+        context->getPrefs().save(PrefKey::KEY_LOG_LEVEL, level);
+
+        // Notify back
+        String response = String(level) + " (" + LogUtils::logLevelToString(static_cast<LogLevel>(level)) + ")";
+        context->getBLETextServer().notifyString(CMD_SET_LOG_LEVEL, response.c_str());
+    }
+}
+
 void CommandHandler::handlerSetBLEDeviceName(const ParsedInstruction &instr) {
     if (instr.postParamType == ParamType::STRING) {
-        printf("[BLE] New BLE Name = %s\n", instr.postParamStr);
         context->getBLETextServer().setDeviceName(instr.postParamStr);
     }
 }

@@ -10,12 +10,13 @@
 #include "DebugInfoPrinter.h"
 #include "version.h"
 #include <cstdio>
+#include "core/SystemContext.h"
+#include "core/LogUtils.h"
 
-void DebugInfoPrinter::printAll(SystemContext& context)
-{
-    printf("========== SYSTEM DEBUG INFO ==========\n");
+void DebugInfoPrinter::printAll(SystemContext& context) {
+    LogUtils::info("========== SYSTEM DEBUG info ==========\n");
 
-    // System info (Tank, WorkZone, Config Params)
+    // System LogUtils::info (Tank, WorkZone, Config Params)
     printSystemInfo(context);
 
     // Error summary
@@ -24,10 +25,10 @@ void DebugInfoPrinter::printAll(SystemContext& context)
     // Real-time data (flow, PI controller, errors, GPS)
     printRealTimeData(context);
 
-    // Detailed GPS info (TinyGPSPlus object)
+    // Detailed GPS LogUtils::info (TinyGPSPlus object)
     printGPSInfo(context.getGPSModule());
 
-    printf("=======================================\n");
+    LogUtils::info("=======================================\n");
 }
 
 String DebugInfoPrinter::formatErrorFlags(uint32_t errorFlags) {
@@ -56,9 +57,9 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
     const DispenserChannel& right = context.getRightChannel();
 
     // Main PI control debug line
-    printf("[LOG] Time: %lu\n", millis());
+    LogUtils::info("[LOG] Time: %lu\n", millis());
 
-    printf(" LEFT  | TargetFlow: %.2f | RealFlow: %.2f | Error: %.2f | CtrlSig: %d | Distance: %d | AreaPerSec: %.2f | Liquid: %.2f\n",
+    LogUtils::info(" LEFT  | TargetFlow: %.2f | RealFlow: %.2f | Error: %.2f | CtrlSig: %d | Distance: %d | AreaPerSec: %.2f | Liquid: %.2f\n",
            left.getTargetFlowRatePerMin(),
            left.getRealFlowRatePerMin(),
            left.getPIController().getError(),
@@ -68,7 +69,7 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
            left.getLiquidConsumed()
     );
 
-    printf(" RIGHT | TargetFlow: %.2f | RealFlow: %.2f | Error: %.2f | CtrlSig: %d | Distance: %d | AreaPerSec: %.2f | Liquid: %.2f\n",
+    LogUtils::info(" RIGHT | TargetFlow: %.2f | RealFlow: %.2f | Error: %.2f | CtrlSig: %d | Distance: %d | AreaPerSec: %.2f | Liquid: %.2f\n",
            right.getTargetFlowRatePerMin(),
            right.getRealFlowRatePerMin(),
            right.getPIController().getError(),
@@ -79,7 +80,7 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
     );
 
     // Task state and metrics
-    printf(" LEFT  [TASK] State: %s | Duration: %d s | Distance: %d m | AreaDone: %.2f daa | LiquidUsed: %.2f L\n",
+    LogUtils::info(" LEFT  [TASK] State: %s | Duration: %d s | Distance: %d m | AreaDone: %.2f daa | LiquidUsed: %.2f L\n",
            left.getTaskStateName(),
            left.getTaskDuration(),
            left.getDistanceTaken(),
@@ -87,7 +88,7 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
            left.getLiquidConsumed()
     );
 
-    printf(" RIGHT [TASK] State: %s | Duration: %d s | Distance: %d m | AreaDone: %.2f daa | LiquidUsed: %.2f L\n",
+    LogUtils::info(" RIGHT [TASK] State: %s | Duration: %d s | Distance: %d m | AreaDone: %.2f daa | LiquidUsed: %.2f L\n",
            right.getTaskStateName(),
            right.getTaskDuration(),
            right.getDistanceTaken(),
@@ -99,15 +100,15 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
     String leftErrorStr = formatErrorFlags(left.getErrorFlags());
     String rightErrorStr = formatErrorFlags(right.getErrorFlags());
 
-    printf(" LEFT  [ERROR] Flags: %08X %s\n", left.getErrorFlags(), leftErrorStr.c_str());
-    printf(" RIGHT [ERROR] Flags: %08X %s\n", right.getErrorFlags(), rightErrorStr.c_str());
+    LogUtils::info(" LEFT  [ERROR] Flags: %08X %s\n", left.getErrorFlags(), leftErrorStr.c_str());
+    LogUtils::info(" RIGHT [ERROR] Flags: %08X %s\n", right.getErrorFlags(), rightErrorStr.c_str());
 }
 
 void DebugInfoPrinter::printErrorSummary(SystemContext& context) {
     const DispenserChannel& left = context.getLeftChannel();
     const DispenserChannel& right = context.getRightChannel();
 
-    printf("[ERROR SUMMARY] LEFT: %s | RIGHT: %s\n",
+    LogUtils::info("[ERROR SUMMARY] LEFT: %s | RIGHT: %s\n",
            formatErrorFlags(left.getErrorFlags()).c_str(),
            formatErrorFlags(right.getErrorFlags()).c_str());
 }
@@ -115,7 +116,7 @@ void DebugInfoPrinter::printErrorSummary(SystemContext& context) {
 void DebugInfoPrinter::printSystemInfo(SystemContext& context) {
     const SystemParams& params = context.getPrefs().getParams();
 
-    printf("[SYSTEM INFO] TankLevel: %.2f | ClientInWorkZone: %s | MinWorkingSpeed: %.2f km/h | SimSpeed: %.2f km/h | BoomWidth Left: %.2f m | BoomWidth Right: %.2f m\n",
+    LogUtils::info("[SYSTEM LogUtils::info] TankLevel: %.2f | ClientInWorkZone: %s | MinWorkingSpeed: %.2f km/h | SimSpeed: %.2f km/h | BoomWidth Left: %.2f m | BoomWidth Right: %.2f m\n",
            DispenserChannel::getTankLevel(),
            DispenserChannel::isClientInWorkZone() ? "YES" : "NO",
            params.minWorkingSpeed,
@@ -193,38 +194,37 @@ void DebugInfoPrinter::printGPSInfo(TinyGPSPlus& gpsModule) {
     }
 
     if (n > 0) {
-        printf("[GPS] %s\n", buffer);
+        LogUtils::info("[GPS] %s\n", buffer);
     }
 }
 
-void DebugInfoPrinter::printResetReason(const char* cpuLabel, int reason)
-{
+void DebugInfoPrinter::printResetReason(const char* cpuLabel, int reason) {
     const char* reasonStr = nullptr;
 
     switch (reason) {
-        case 1:  reasonStr = "Vbat power on reset"; break;
-        case 3:  reasonStr = "Software reset digital core"; break;
-        case 4:  reasonStr = "Legacy watch dog reset digital core"; break;
-        case 5:  reasonStr = "Deep Sleep reset digital core"; break;
-        case 6:  reasonStr = "Reset by SLC module, reset digital core"; break;
-        case 7:  reasonStr = "Timer Group0 Watch dog reset digital core"; break;
-        case 8:  reasonStr = "Timer Group1 Watch dog reset digital core"; break;
-        case 9:  reasonStr = "RTC Watch dog Reset digital core"; break;
-        case 10: reasonStr = "Instrusion tested to reset CPU"; break;
-        case 11: reasonStr = "Time Group reset CPU"; break;
-        case 12: reasonStr = "Software reset CPU"; break;
-        case 13: reasonStr = "RTC Watch dog Reset CPU"; break;
-        case 14: reasonStr = "for APP CPU, reset by PRO CPU"; break;
-        case 15: reasonStr = "Reset when the vdd voltage is not stable"; break;
-        case 16: reasonStr = "RTC Watch dog reset digital core and rtc module"; break;
-        default: reasonStr = "Unspecified error caused Reset"; break;
+        case 1:  reasonStr = "Vbat reset"; break;
+        case 3:  reasonStr = "SW reset core"; break;
+        case 4:  reasonStr = "Legacy WDT core"; break;
+        case 5:  reasonStr = "DeepSleep reset"; break;
+        case 6:  reasonStr = "SLC reset core"; break;
+        case 7:  reasonStr = "TGrp0 WDT core"; break;
+        case 8:  reasonStr = "TGrp1 WDT core"; break;
+        case 9:  reasonStr = "RTC WDT core"; break;
+        case 10: reasonStr = "Instrusion reset"; break;
+        case 11: reasonStr = "TimeGrp reset CPU"; break;
+        case 12: reasonStr = "SW reset CPU"; break;
+        case 13: reasonStr = "RTC WDT CPU"; break;
+        case 14: reasonStr = "APP CPU reset by PRO"; break;
+        case 15: reasonStr = "VDD unstable reset"; break;
+        case 16: reasonStr = "RTC WDT core+RTC"; break;
+        default: reasonStr = "Unspecified reset"; break;
     }
 
-    printf("[RESET] %s: %s\n", cpuLabel, reasonStr);
+    LogUtils::info("[RESET] %s: %s\n", cpuLabel, reasonStr);
 }
 
 void DebugInfoPrinter::printMotorDiagnostics(float pos1, float pos2, float current1, float current2) {
-    printf("[MOTORS] Pot1: %.4f V | Pot2: %.4f V | Curr1: %.4f V | Curr2: %.4f V\n",
+    LogUtils::info("[MOTORS] Pot1: %.4f V | Pot2: %.4f V | Curr1: %.4f V | Curr2: %.4f V\n",
            pos1, pos2, current1, current2);
 }
 
@@ -233,13 +233,21 @@ void DebugInfoPrinter::printTempSensorStatus(DS18B20Sensor& sensor) {
         float temp = sensor.getTemperatureC();
         String id = sensor.getSensorID();
 
-        printf("[TEMP SENSOR] DS18B20 found | SensorID: %s | Temperature: %.2f °C\n", id.c_str(), temp);
+        LogUtils::info("[TEMP SENSOR] DS18B20 found | SensorID: %s | Temperature: %.2f °C\n", id.c_str(), temp);
     } else {
-        printf("[TEMP SENSOR] DS18B20 not found\n");
+        LogUtils::info("[TEMP SENSOR] DS18B20 not found\n");
     }
 }
 
+void DebugInfoPrinter::printDeviceIdentifiers(SystemContext &context) {
+    String boardID = context.getBoardID();
+    String espID = context.getEspID();
+    String bleMAC = context.getBleMAC();
+
+    LogUtils::info("[DEVICE] ChipID: %s | BLE MAC: %s | BoardID: %s\n", espID.c_str(), bleMAC.c_str(), boardID.c_str());
+}
+
 void DebugInfoPrinter::printVersionInfo() {
-    printf("[VERSION] Firmware: %s | Device: %s | Build: %s %s\n",
+    LogUtils::info("[VERSION] Firmware: %s | Device: %s | Build: %s %s\n",
            FIRMWARE_VERSION, DEVICE_VERSION, BUILD_DATE, BUILD_TIME);
 }

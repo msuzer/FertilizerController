@@ -47,13 +47,21 @@ struct CommandEntry {
     CommandFunction handler;
 };
 
+class SystemContext; // Forward declaration
+
 class BLECommandParser {
+    friend class SystemContext; // Allow SystemContext to access private members
 public:
-    BLECommandParser(){commands.reserve(MAX_COMMANDS);}
+    BLECommandParser(const BLECommandParser&) = delete;
+    BLECommandParser& operator=(const BLECommandParser&) = delete;
+    BLECommandParser(BLECommandParser&&) = delete;
+    BLECommandParser& operator=(BLECommandParser&&) = delete;
+
     void registerCommand(const std::string& name, CommandFunction handler);
     void sortCommands();
     void dispatchInstruction(const std::string& input);
 private:
+    BLECommandParser(){commands.reserve(MAX_COMMANDS);}
     std::vector<CommandEntry> commands;
     bool parseInstruction(const std::string& input, ParsedInstruction& out);
 };

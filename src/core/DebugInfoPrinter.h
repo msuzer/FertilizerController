@@ -9,12 +9,12 @@
 // ============================================
 #pragma once
 
-#include "core/SystemContext.h"
 #include <TinyGPSPlus.h>
 #include "io/DS18B20Sensor.h"
 
-class DebugInfoPrinter
-{
+class SystemContext;  // Forward declaration for SystemContext
+
+class DebugInfoPrinter {
 public:
     static constexpr const char* MODULE_NAME = "DebugInfoPrinter";
 
@@ -32,6 +32,8 @@ public:
     static void printMotorDiagnostics(float pos1, float pos2, float current1, float current2);
 
     static void printTempSensorStatus(DS18B20Sensor& sensor);
+
+    static void printDeviceIdentifiers(SystemContext& context);
 
     static void printVersionInfo();
 };

@@ -22,6 +22,7 @@
 #include <esp32/rom/rtc.h>
 #include <Wire.h>
 #include <TinyGPSPlus.h>
+#include <stdarg.h>  // Required for va_list, va_start, va_end
 
 #include "ble/BLETextServer.h"
 #include "io/VNH7070AS.h"
@@ -30,6 +31,7 @@
 
 #include "core/SystemContext.h"
 #include "core/DebugInfoPrinter.h"
+#include "core/LogUtils.h"
 
 // === User-Defined Timer Frequency ===
 #define TASK_LOOP_UPDATE_FREQUENCY_HZ         1  // Task loop frequency in Hz
@@ -37,14 +39,13 @@
 
 
 // --- Create Services ---
-SystemContext context;
+static SystemContext& context = SystemContext::instance();
 
 // === Timer Setup ===
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 bool notifyDeferredTasks = false;
 static bool timeToRefresh = false;
 
-void die(const char* message);
 static void taskLoopUpdateCallback(void *p);
 static void controlLoopUpdateCallback(void *p);
 
@@ -85,16 +86,6 @@ static void controlLoopUpdateCallback(void *p) {
   portEXIT_CRITICAL_ISR(&timerMux);
 }
 
-void die(const char* message) {
-  printf(message);
-  while(1) {
-    context.writeRGBLEDs(HIGH, LOW, LOW);
-    delay(100);
-    context.writeRGBLEDs(LOW, LOW, LOW);
-    delay(1000);
-  }
-}
-
 esp_err_t setupPeriodicAlarmWrapper(const char* timerName, esp_timer_cb_t callback, uint64_t periodUs) {
     esp_timer_create_args_t timer_args = {
         .callback = callback,
@@ -105,17 +96,17 @@ esp_err_t setupPeriodicAlarmWrapper(const char* timerName, esp_timer_cb_t callba
     esp_timer_handle_t timer_handle;
     esp_err_t ret = esp_timer_create(&timer_args, &timer_handle);
     if (ret != ESP_OK) {
-        printf("[TIMER] ERROR creating timer '%s'!\n", timerName);
+        LogUtils::die("[TIMER] ERROR creating timer '%s'!\n", timerName);
         return ret;
     }
 
     ret = esp_timer_start_periodic(timer_handle, periodUs);
     if (ret != ESP_OK) {
-        printf("[TIMER] ERROR starting timer '%s'!\n", timerName);
+        LogUtils::die("[TIMER] ERROR starting timer '%s'!\n", timerName);
         return ret;
     }
 
-    printf("[TIMER] Created '%s' period %llu ms\n", timerName, periodUs / 1000ull);
+    LogUtils::info("[TIMER] Created '%s' period %llu ms\n", timerName, periodUs / 1000ull);
     return ESP_OK;
 }
 
@@ -129,26 +120,20 @@ void setup() {
 
   context.writeRGBLEDs(LOW, HIGH, LOW);
 
+  // LogUtils::setLogLevel(LogLevel::Info);
+
   DebugInfoPrinter::printResetReason("CPU0", rtc_get_reset_reason(0));
   DebugInfoPrinter::printResetReason("CPU1", rtc_get_reset_reason(1));
 
   DebugInfoPrinter::printVersionInfo();
 
-  esp_err_t ret = setupPeriodicAlarmWrapper("taskLoop_timer", 
+  setupPeriodicAlarmWrapper("taskLoop_timer", 
     taskLoopUpdateCallback, TIMER_PERIOD_US(TASK_LOOP_UPDATE_FREQUENCY_HZ));
 
-  if (ret != ESP_OK) {
-    die("Task Loop Timer Setup Failed!\n");
-  }
-
-  ret = setupPeriodicAlarmWrapper("controlLoop_timer", 
+  setupPeriodicAlarmWrapper("controlLoop_timer", 
     controlLoopUpdateCallback, TIMER_PERIOD_US(CONTROL_LOOP_UPDATE_FREQUENCY_HZ));
 
-  if (ret != ESP_OK) {
-    die("Control Loop Timer Setup Failed!\n");
-  }
-
-  context.init();
+  context.init(); // Initialize all services
   
   DebugInfoPrinter::printTempSensorStatus(context.getTempSensor());
 
@@ -180,13 +165,13 @@ void loop() {
     DebugInfoPrinter::printMotorDiagnostics(pos1, pos2, current1, current2);
 
     if (motor1.checkStuck(current1)) {
-        Serial.println("MOTOR 1 STUCK!");
+        LogUtils::warn("[MOTOR] M1 STUCK!\n");
         context.getLeftChannel().setError(MOTOR_STUCK);
         context.getLeftChannel().setTaskState(UserTaskState::Paused);
     }
 
     if (motor2.checkStuck(current2)) {
-        Serial.println("MOTOR 2 STUCK!");
+        LogUtils::warn("[MOTOR] M2 STUCK!\n");
         context.getRightChannel().setError(MOTOR_STUCK);
         context.getRightChannel().setTaskState(UserTaskState::Paused);
     }
@@ -199,7 +184,7 @@ void loop() {
   if (timeToRefresh) {
     timeToRefresh = false;
     if (context.getLeftChannel().isClientInWorkZone()) {
-      CommandHandler::getInstance().handlerGetTaskInfo({}); // pass empty ParsedInstruction
+      context.getCommandHandler().handlerGetTaskInfo({}); // pass empty ParsedInstruction
     }
     DebugInfoPrinter::printAll(context);
   }

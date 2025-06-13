@@ -9,11 +9,6 @@
 // ============================================
 #include "GPSProvider.h"
 
-GPSProvider& GPSProvider::getInstance() {
-    static GPSProvider instance;
-    return instance;
-}
-
 bool GPSProvider::isValid() const {
     
     return gpsModule->location.isValid() &&

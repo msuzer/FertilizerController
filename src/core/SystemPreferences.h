@@ -44,6 +44,7 @@ class SystemContext; // Forward declaration
         KEY_RIGHT_BOOM_WIDTH,
         KEY_PI_KP,
         KEY_PI_KI,
+        KEY_LOG_LEVEL,
         KEY_COUNT
     };
 
@@ -56,11 +57,12 @@ struct SystemParams {
 };
 
 class SystemPreferences {
+    friend class SystemContext;
 public:
-    static SystemPreferences& getInstance();
-    SystemPreferences() = default;
     SystemPreferences(const SystemPreferences&) = delete;
     SystemPreferences& operator=(const SystemPreferences&) = delete;
+    SystemPreferences(SystemPreferences&&) = delete;
+    SystemPreferences& operator=(SystemPreferences&&) = delete;
 
     const SystemParams& getParams() const { return params; }
     SystemParams& getParams() { return params; }
@@ -68,6 +70,7 @@ public:
 
     void init(SystemContext& ctx);
 
+    bool getBool(PrefKey key, bool defaultValue);
     int getInt(PrefKey key, int defaultValue);
     float getFloat(PrefKey key, float defaultValue);
     String getString(PrefKey key, const String& defaultValue);
@@ -77,6 +80,7 @@ public:
 
     static const char* getKeyName(PrefKey key);
 private:
+    SystemPreferences() = default;
     SystemParams params;
     static constexpr const char* storageNamespace = "UIData";
     static const char* keyNames[KEY_COUNT];

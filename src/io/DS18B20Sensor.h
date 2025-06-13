@@ -12,12 +12,15 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
+class SystemContext; // Forward declaration
+
 class DS18B20Sensor {
+    friend class SystemContext; // Allow SystemContext to access private members
 public:
-    static DS18B20Sensor& getInstance();
-    DS18B20Sensor() = default; // private constructor
     DS18B20Sensor(const DS18B20Sensor&) = delete;
     DS18B20Sensor& operator=(const DS18B20Sensor&) = delete;
+    DS18B20Sensor(DS18B20Sensor&&) = delete;
+    DS18B20Sensor& operator=(DS18B20Sensor&&) = delete;
 
     bool init(uint8_t pin);  // call in setup
     float getTemperatureC();
@@ -25,6 +28,8 @@ public:
     bool isReady() const;
 
 private:
+    DS18B20Sensor() = default; // private constructor
+
     OneWire* oneWire;
     DallasTemperature* sensors;
     DeviceAddress deviceAddress;

@@ -1,6 +1,6 @@
 // ============================================
 // File: VNH7070ASPins.h
-// Purpose: Driver for VNH7070AS motor driver
+// Purpose: Define pin configuration for VNH7070AS motor driver
 // Part of: Hardware Abstraction Layer (HAL)
 //
 // License: Proprietary License

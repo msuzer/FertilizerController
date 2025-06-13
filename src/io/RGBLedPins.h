@@ -1,6 +1,6 @@
 // ============================================
 // File: RGBLedPins.h
-// Purpose: 
+// Purpose: Define pin configuration for RGB LED
 // Part of: Hardware Abstraction Layer (HAL)
 //
 // License: Proprietary License

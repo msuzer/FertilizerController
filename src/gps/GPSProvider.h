@@ -11,6 +11,8 @@
 
 #include <TinyGPSPlus.h>
 
+class SystemContext; // Forward declaration
+
 struct Location_t {
     double lat;
     double lng;
@@ -18,16 +20,17 @@ struct Location_t {
 };
 
 class GPSProvider {
+    friend class SystemContext;
 public:
     static constexpr float MIN_SPEED_MPS = 0.1f; // Minimum speed to consider GPS valid
     static constexpr float MIN_SPEED_KMPH = 0.36f; // Minimum speed in km/h
     static constexpr float MAX_HDOP_TOLERATED = 20.0f; // Maximum HDOP to consider GPS valid
     static constexpr float MIN_SATELLITES_NEEDED = 4; // Minimum satellites needed for valid GPS data
 
-    static GPSProvider& getInstance();
-    GPSProvider() = default;
     GPSProvider(const GPSProvider&) = delete;
     GPSProvider& operator=(const GPSProvider&) = delete;
+    GPSProvider(GPSProvider&&) = delete;
+    GPSProvider& operator=(GPSProvider&&) = delete;
 
     inline void setModule(TinyGPSPlus* module) { gpsModule = module; }
 
@@ -36,5 +39,6 @@ public:
     float getSpeed(bool mps = false) const;
     int getSatelliteCount() const;
 private:
+    GPSProvider() = default;
     TinyGPSPlus* gpsModule = nullptr;
 };

@@ -1,6 +1,6 @@
 // ============================================
 // File: IOConfig.h
-// Purpose: 
+// Purpose: Define pin configurations for various hardware components
 // Part of: Hardware Abstraction Layer (HAL)
 //
 // License: Proprietary License

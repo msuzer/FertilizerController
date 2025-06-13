@@ -15,11 +15,12 @@
 class SystemContext; // Forward declaration
 
 class CommandHandler {
+    friend class SystemContext; // Allow SystemContext to access private members
 public:
-    static CommandHandler& getInstance();
-    CommandHandler() = default;
     CommandHandler(const CommandHandler&) = delete;
     CommandHandler& operator=(const CommandHandler&) = delete;
+    CommandHandler(CommandHandler&&) = delete;
+    CommandHandler& operator=(CommandHandler&&) = delete;
 
     inline void setContext(SystemContext* ctx) { context = ctx; }
 
@@ -27,6 +28,8 @@ public:
     static void sendBLEPacketChecked(const String& packet);
 
     // Handlers
+    static void handlerSetLogLevel(const ParsedInstruction& instr);
+
     static void handlerSetBLEDeviceName(const ParsedInstruction& instr);
     static void handlerGetDeviceInfo(const ParsedInstruction& instr);
     static void handlerGetSpeedInfo(const ParsedInstruction& instr);
@@ -58,5 +61,7 @@ public:
     static void handlerReportUserParams(const ParsedInstruction& instr);
 
 private:
+    CommandHandler() = default;
+
     static SystemContext* context;
 };

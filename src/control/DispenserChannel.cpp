@@ -11,6 +11,7 @@
 #include "gps/GPSProvider.h"
 #include "core/SystemContext.h"
 #include "ble/UserInfoFormatter.h"
+#include "core/LogUtils.h"
 
 float DispenserChannel::tankLevel = 0.0f; // Default tank level
 bool DispenserChannel::clientInWorkZone = false; // Default client work zone status
@@ -21,8 +22,7 @@ void DispenserChannel::init(SystemContext* ctx, const VNH7070ASPins &motorPins) 
   motorDriver.init(motorPins, writePwmESP32, writeDigitalESP32);
 }
 
-bool DispenserChannel::setTaskState(UserTaskState state)
-{
+bool DispenserChannel::setTaskState(UserTaskState state) {
     bool validOp = false;
 
     switch (taskState) {
@@ -58,8 +58,8 @@ bool DispenserChannel::setTaskState(UserTaskState state)
 
             clearError(ERRORS_TO_CLEAR);
 
-            printf("[UI] Cleared relevant error flags due to task state transition to %s\n", getTaskStateName());
-            printf("[UI] Aligning Motor To End\n");
+            LogUtils::info("[STATE] Cleared relevant error flags due to task state transition to %s\n", getTaskStateName());
+            LogUtils::warn("[MOTOR] Aligning Motor To End\n");
 
             alignToEnd();
         }
@@ -67,7 +67,7 @@ bool DispenserChannel::setTaskState(UserTaskState state)
         return true;
     }
 
-    printf("[UI] Invalid state transition: %s → %s\n", getTaskStateName(), taskStateToString(state));
+    LogUtils::warn("[STATE] Invalid state transition: %s → %s\n", getTaskStateName(), taskStateToString(state));
     return false;
 }
 
@@ -93,13 +93,13 @@ void DispenserChannel::checkLowSpeedState() {
                 if (isTaskActive()) {
                     lowSpeedFlag = true;
                     setTaskState(UserTaskState::Paused);
-                    printf("%s Channel Task Paused due to Low Speed\n", channelName);
+                    LogUtils::warn("[FLOW] %s Channel Task Paused due to Low Speed\n", channelName);
                 }
             }
         } else {
             if (lowSpeedFlag) {
                 if (isTaskPaused()) {
-                    printf("Resuming %s Channel Task\n", channelName);
+                    LogUtils::info("[FLOW] Resuming %s Channel Task\n", channelName);
                     lowSpeedFlag = false;
                     // Optional: channel.setTaskState(UserTaskState::Resuming);
                     setTaskState(UserTaskState::Resuming);
@@ -153,7 +153,7 @@ void DispenserChannel::updateTaskMetrics() {
         decreaseTankLevel(slice);
         increaseLiquidConsumed(slice);
 
-        printf("Ground Speed, Boom Width and Min Flow OK for one channel!\n");
+        LogUtils::info("[FLOW] Ground Speed, Boom Width and Min Flow OK for one channel!\n");
 
         clearError(INSUFFICIENT_FLOW);
 
@@ -225,7 +225,7 @@ void DispenserChannel::alignToEnd(bool forward) {
       motorDriver.setSpeed(ALIGN_SPEED);
   } else {
       motorDriver.setSpeed(0);
-      printf("[%s] Motor aligned to %s end.\n", channelName.c_str(), forward ? "FORWARD" : "BACKWARD");
+      LogUtils::info("[MOTOR] [%s] Motor aligned to %s end.\n", channelName.c_str(), forward ? "FORWARD" : "BACKWARD");
   }
 }
 

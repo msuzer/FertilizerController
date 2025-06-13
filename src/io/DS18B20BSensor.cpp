@@ -10,11 +10,6 @@
 // ============================================
 #include "DS18B20Sensor.h"
 
-DS18B20Sensor& DS18B20Sensor::getInstance() {
-    static DS18B20Sensor instance;
-    return instance;
-}
-
 bool DS18B20Sensor::init(uint8_t pin) {
     oneWire = new OneWire(pin);
     sensors = new DallasTemperature(oneWire);

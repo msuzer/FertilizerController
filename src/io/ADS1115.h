@@ -12,6 +12,8 @@
 #include <Wire.h>
 #include "ADS1115Pins.h"
 
+class SystemContext; // Forward declaration
+
 enum ADS1115Channels {
     CH0 = 0,
     CH1,
@@ -20,6 +22,7 @@ enum ADS1115Channels {
 };
 
 class ADS1115 {
+    friend class SystemContext; // Allow SystemContext to access private members
 public:
     enum class Gain {
         FSR_6_144V = 0,
@@ -41,7 +44,10 @@ public:
         SPS_860
     };
 
-    ADS1115(TwoWire& wire = Wire);
+    ADS1115(const ADS1115&) = delete;
+    ADS1115& operator=(const ADS1115&) = delete;
+    ADS1115(ADS1115&&) = delete;
+    ADS1115& operator=(ADS1115&&) = delete;
 
     bool init(const uint8_t i2c_address = 0x48, const ADS1115Pins & pins = {-1, -1});
     void setGain(Gain gain);
@@ -66,6 +72,8 @@ public:
     float getFSR() const;
 
 private:
+    ADS1115(TwoWire& wire = Wire) : _wire(&wire) {}
+
     bool _configure(uint16_t mux);
     int16_t _readConversionRegister();
     uint16_t _buildConfig(uint16_t mux);

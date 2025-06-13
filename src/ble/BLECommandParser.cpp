@@ -8,6 +8,7 @@
 // Date: 13 June 2025
 // ============================================
 #include "BLECommandParser.h"
+#include "core/LogUtils.h"
 
 void BLECommandParser::registerCommand(const std::string& name, CommandFunction handler) {
     commands.push_back({name, handler});
@@ -22,10 +23,10 @@ void BLECommandParser::sortCommands() {
 void BLECommandParser::dispatchInstruction(const std::string& input) {
     ParsedInstruction instr;
     
-    printf("[Dispatch] Received: %s\n", input.c_str());
+    LogUtils::info("[Dispatch] Received: %s\n", input.c_str());
 
     if (!parseInstruction(input, instr)) {
-        printf("[Dispatch] Invalid instruction: %s\n", input.c_str());
+        LogUtils::warn("[Dispatch] Invalid instruction: %s\n", input.c_str());
         return;
     }
 
@@ -35,10 +36,10 @@ void BLECommandParser::dispatchInstruction(const std::string& input) {
         });
 
     if (it != commands.end() && it->name == instr.command) {
-        // printf("[Dispatch] Dispatching command: %s\n", it->name.c_str());
+        LogUtils::verbose("[Dispatch] Dispatching command: %s\n", it->name.c_str());
         it->handler(instr);
     } else {
-        printf("[Dispatch] No handler for command: %s\n", instr.command);
+        LogUtils::warn("[Dispatch] No handler for command: %s\n", instr.command);
     }
 }
 
@@ -57,7 +58,7 @@ bool BLECommandParser::parseInstruction(const std::string& input, ParsedInstruct
                 out.preParamType = ParamType::INT;
                 out.postParam.f = f2;
                 out.postParamType = ParamType::FLOAT;
-                printf("Parsed: %s%d=%.2f\n", out.command, out.preParamInt, out.postParam.f);
+                LogUtils::verbose("Parsed: %s%d=%.2f\n", out.command, out.preParamInt, out.postParam.f);
                 return true;
             }
 
@@ -66,7 +67,7 @@ bool BLECommandParser::parseInstruction(const std::string& input, ParsedInstruct
                 out.preParamType = ParamType::NONE;
                 out.postParam.f = f2;
                 out.postParamType = ParamType::FLOAT;
-                printf("Parsed: %s=%.2f\n", out.command, out.postParam.f);
+                LogUtils::verbose("Parsed: %s=%.2f\n", out.command, out.postParam.f);
                 return true;
             }    
         } else {
@@ -76,7 +77,7 @@ bool BLECommandParser::parseInstruction(const std::string& input, ParsedInstruct
                 out.preParamType = ParamType::INT;
                 out.postParam.i = i2;
                 out.postParamType = ParamType::INT;
-                printf("Parsed: %s%d=%d\n", out.command, out.preParamInt, out.postParam.i);
+                LogUtils::verbose("Parsed: %s%d=%d\n", out.command, out.preParamInt, out.postParam.i);
                 return true;
             }
 
@@ -85,7 +86,7 @@ bool BLECommandParser::parseInstruction(const std::string& input, ParsedInstruct
                 out.preParamType = ParamType::NONE;
                 out.postParam.i = i2;
                 out.postParamType = ParamType::INT;
-                printf("Parsed: %s=%d\n", out.command, out.postParam.i);
+                LogUtils::verbose("Parsed: %s=%d\n", out.command, out.postParam.i);
                 return true;
             }
 
@@ -94,7 +95,7 @@ bool BLECommandParser::parseInstruction(const std::string& input, ParsedInstruct
                 strncpy(out.postParamStr, val, sizeof(out.postParamStr));
                 out.postParamStr[sizeof(out.postParamStr) - 1] = '\0';
                 out.postParamType = ParamType::STRING;
-                printf("Parsed: %s=%s (as string)\n", out.command, out.postParamStr);
+                LogUtils::verbose("Parsed: %s=%s (as string)\n", out.command, out.postParamStr);
                 return true;
             }
         }
@@ -104,7 +105,7 @@ bool BLECommandParser::parseInstruction(const std::string& input, ParsedInstruct
         strcpy(out.command, input.c_str());
         out.preParamType = ParamType::NONE;
         out.postParamType = ParamType::NONE;
-        printf("Parsed: %s\n", out.command);
+        LogUtils::verbose("Parsed: %s\n", out.command);
         return true;
     }
 
