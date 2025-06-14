@@ -46,6 +46,9 @@ void SystemPreferences::init(SystemContext& ctx) {
     prefs.begin(storageNamespace, true);
 
     int logLevel = prefs.getInt(keyNames[KEY_LOG_LEVEL], static_cast<int>(LogLevel::Info));
+    if (logLevel > static_cast<int>(LogLevel::Info)) {
+        logLevel = static_cast<int>(LogLevel::Info); // No verbose logging on boot up.
+    }
     LogUtils::setLogLevel(static_cast<LogLevel>(logLevel));
 
     params.speedSource = prefs.getString(keyNames[KEY_SPEED_SRC], DEFAULT_SPEED_SOURCE);

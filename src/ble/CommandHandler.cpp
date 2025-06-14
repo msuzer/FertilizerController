@@ -102,14 +102,8 @@ void CommandHandler::sendBLEPacketChecked(const String& packet) {
 void CommandHandler::handlerSetLogLevel(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::INT) {
         int level = instr.postParam.i;
-        level = constrain(instr.postParam.i, static_cast<int>(LogLevel::Silent), static_cast<int>(LogLevel::Verbose));  // Map to LogUtils::LogLevel enum
-
         LogUtils::setLogLevel(static_cast<LogLevel>(level));
-
-        // Save to prefs (optional)
         context->getPrefs().save(PrefKey::KEY_LOG_LEVEL, level);
-
-        // Notify back
         String response = String(level) + " (" + LogUtils::logLevelToString(static_cast<LogLevel>(level)) + ")";
         context->getBLETextServer().notifyString(CMD_SET_LOG_LEVEL, response.c_str());
     }

@@ -36,4 +36,6 @@ public:
     static void printDeviceIdentifiers(SystemContext& context);
 
     static void printVersionInfo();
+
+    static void printAppInfo();
 };

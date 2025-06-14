@@ -34,7 +34,10 @@ void SystemContext::init() {
 
     DebugInfoPrinter::printDeviceIdentifiers(*this);
 
-    ads1115.init(ADS1115_I2C_ADDRESS, adsPins);
+    if (!ads1115.init(ADS1115_I2C_ADDRESS, adsPins)) {
+        LogUtils::die("[ADS1115] Failed to initialize ADS1115 ADC!\n");
+    }
+
     ads1115.setGain(ADS1115::Gain::FSR_4_096V); // Optional: Set gain
 
     prefs.init(*this);

@@ -125,6 +125,7 @@ void setup() {
   DebugInfoPrinter::printResetReason("CPU0", rtc_get_reset_reason(0));
   DebugInfoPrinter::printResetReason("CPU1", rtc_get_reset_reason(1));
 
+  DebugInfoPrinter::printAppInfo();
   DebugInfoPrinter::printVersionInfo();
 
   setupPeriodicAlarmWrapper("taskLoop_timer", 

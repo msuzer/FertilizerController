@@ -54,8 +54,7 @@ constexpr uint16_t ADS1115_DR_TABLE[] = {
 
 bool ADS1115::init(const uint8_t i2c_address, const ADS1115Pins & pins) {
     _i2cAddress = i2c_address;
-    _wire->begin(pins.SDA, pins.SCL);
-    return true;
+    return _wire->begin(pins.SDA, pins.SCL);
 }
 
 void ADS1115::setGain(Gain gain) {

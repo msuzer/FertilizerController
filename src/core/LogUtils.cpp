@@ -7,6 +7,7 @@
 // Date: 
 // ============================================
 
+#include <Arduino.h>
 #include "core/LogUtils.h"
 #include "core/SystemContext.h"
 
@@ -16,6 +17,12 @@
 LogLevel LogUtils::currentLogLevel = LogLevel::Info;
 
 void LogUtils::setLogLevel(LogLevel level) {
+    // Ensure the log level is within the defined range
+    if (level < LogLevel::Silent)
+        level = LogLevel::Silent;
+    else if (level > LogLevel::Verbose)
+        level = LogLevel::Verbose;
+
     currentLogLevel = level;
     info("Current Log Level: %s\n", logLevelToString(currentLogLevel));
 }

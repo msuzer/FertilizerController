@@ -116,7 +116,7 @@ void DebugInfoPrinter::printErrorSummary(SystemContext& context) {
 void DebugInfoPrinter::printSystemInfo(SystemContext& context) {
     const SystemParams& params = context.getPrefs().getParams();
 
-    LogUtils::info("[SYSTEM LogUtils::info] TankLevel: %.2f | ClientInWorkZone: %s | MinWorkingSpeed: %.2f km/h | SimSpeed: %.2f km/h | BoomWidth Left: %.2f m | BoomWidth Right: %.2f m\n",
+    LogUtils::info("[SYSTEM info] TankLevel: %.2f | ClientInWorkZone: %s | MinWorkingSpeed: %.2f km/h | SimSpeed: %.2f km/h | BoomWidth Left: %.2f m | BoomWidth Right: %.2f m\n",
            DispenserChannel::getTankLevel(),
            DispenserChannel::isClientInWorkZone() ? "YES" : "NO",
            params.minWorkingSpeed,
@@ -132,8 +132,7 @@ static int addFieldToBuffer(char* buffer, int& n, bool& first, const char* fmt, 
 
     if (!first) {
         n += sprintf(buffer + n, " | ");
-    }
-    else {
+    } else {
         first = false;
     }
 
@@ -250,4 +249,8 @@ void DebugInfoPrinter::printDeviceIdentifiers(SystemContext &context) {
 void DebugInfoPrinter::printVersionInfo() {
     LogUtils::info("[VERSION] Firmware: %s | Device: %s | Build: %s %s\n",
            FIRMWARE_VERSION, DEVICE_VERSION, BUILD_DATE, BUILD_TIME);
+}
+
+void DebugInfoPrinter::printAppInfo() {
+    LogUtils::info("[APP] Fertilizer Dispenser Control System ... Bootup ...\n");
 }
