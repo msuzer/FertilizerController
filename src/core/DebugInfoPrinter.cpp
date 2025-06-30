@@ -28,7 +28,7 @@ void DebugInfoPrinter::printAll(SystemContext& context) {
     // Detailed GPS LogUtils::info (TinyGPSPlus object)
     printGPSInfo(context.getGPSModule());
 
-    LogUtils::info("=======================================\n");
+    LogUtils::info("=======================================\n\n");
 }
 
 String DebugInfoPrinter::formatErrorFlags(uint32_t errorFlags) {
@@ -223,7 +223,7 @@ void DebugInfoPrinter::printResetReason(const char* cpuLabel, int reason) {
 }
 
 void DebugInfoPrinter::printMotorDiagnostics(float pos1, float pos2, float current1, float current2) {
-    LogUtils::info("[MOTORS] Pot1: %.4f V | Pot2: %.4f V | Curr1: %.4f V | Curr2: %.4f V\n",
+    LogUtils::info("[MOTORS] Pot1: %.2fV | Pot2: %.2fV | Curr1: %.2fA | Curr2: %.2fA\n",
            pos1, pos2, current1, current2);
 }
 

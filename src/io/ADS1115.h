@@ -53,6 +53,7 @@ public:
     void setGain(Gain gain);
     void setDataRate(DataRate rate);
 
+    void pushBuffer();
     void pushBuffer(uint8_t channel);
 
     int16_t readSingleEnded(uint8_t channel);

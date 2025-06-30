@@ -9,6 +9,8 @@
 
 #pragma once
 
+#define FIRMWARE_NAME       "Fertilizer Controller"
+#define FIRMWARE_AUTHOR     "Mehmet H Suzer"
 #define FIRMWARE_VERSION    "1.0.0"
 #define DEVICE_VERSION      "HW-Rev-A"
 

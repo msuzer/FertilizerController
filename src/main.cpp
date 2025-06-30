@@ -53,18 +53,18 @@ static void controlLoopUpdateCallback(void *p);
 static void taskLoopUpdateCallback(void *p) {
   static int counterRefresh = 0;
 
-  DispenserChannel& leftChannel = context.getLeftChannel();
-  DispenserChannel& rightChannel = context.getRightChannel();
+  DispenserChannel& left = context.getLeftChannel();
+  DispenserChannel& right = context.getRightChannel();
 
   // Process each channel
-  leftChannel.checkLowSpeedState();
-  rightChannel.checkLowSpeedState();
+  left.checkLowSpeedState();
+  right.checkLowSpeedState();
 
-  leftChannel.updateTaskMetrics();
-  rightChannel.updateTaskMetrics();
+  left.updateTaskMetrics();
+  right.updateTaskMetrics();
 
-  leftChannel.reportErrorFlags();
-  rightChannel.reportErrorFlags();
+  left.reportErrorFlags();
+  right.reportErrorFlags();
 
   // Auto-refresh
   int arPeriod = context.getPrefs().getParams().autoRefreshPeriod;
@@ -152,19 +152,11 @@ void loop() {
   if (notifyDeferredTasks) {
     notifyDeferredTasks = false;
 
-    ads1115.pushBuffer(ADS1115Channels::CH0);
-    ads1115.pushBuffer(ADS1115Channels::CH1);
-    ads1115.pushBuffer(ADS1115Channels::CH2);
-    ads1115.pushBuffer(ADS1115Channels::CH3);
+    ads1115.pushBuffer(); // Push all channels to the buffer
 
-    // --- Compute averages and convert to voltage ---
-    float pos1 = ads1115.readFilteredVoltage(ADS1115Channels::CH0);
-    float pos2 = ads1115.readFilteredVoltage(ADS1115Channels::CH1);
     float current1 = ads1115.readFilteredCurrent(ADS1115Channels::CH2);
     float current2 = ads1115.readFilteredCurrent(ADS1115Channels::CH3);
   
-    DebugInfoPrinter::printMotorDiagnostics(pos1, pos2, current1, current2);
-
     if (leftMotor.checkStuck(current1)) {
         LogUtils::warn("[MOTOR] Left Motor STUCK!\n");
         context.getLeftChannel().setError(MOTOR_STUCK);
@@ -187,6 +179,13 @@ void loop() {
     if (context.getLeftChannel().isClientInWorkZone()) {
       context.getCommandHandler().handlerGetTaskInfo({}); // pass empty ParsedInstruction
     }
+        // --- Compute averages and convert to voltage ---
+    float pos1 = ads1115.readFilteredVoltage(ADS1115Channels::CH0);
+    float pos2 = ads1115.readFilteredVoltage(ADS1115Channels::CH1);
+    float current1 = ads1115.readFilteredCurrent(ADS1115Channels::CH2);
+    float current2 = ads1115.readFilteredCurrent(ADS1115Channels::CH3);
+  
+    DebugInfoPrinter::printMotorDiagnostics(pos1, pos2, current1, current2);
     DebugInfoPrinter::printAll(context);
   }
 }

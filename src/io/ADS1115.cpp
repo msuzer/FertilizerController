@@ -65,6 +65,13 @@ void ADS1115::setDataRate(DataRate rate) {
     _dataRate = rate;
 }
 
+void ADS1115::pushBuffer() {
+    pushBuffer(ADS1115Channels::CH0); // Channel 0
+    pushBuffer(ADS1115Channels::CH1); // Channel 1
+    pushBuffer(ADS1115Channels::CH2); // Channel 2
+    pushBuffer(ADS1115Channels::CH3); // Channel 3
+}
+
 void ADS1115::pushBuffer(uint8_t channel) {
     int16_t raw = readSingleEnded(channel);
     if (channel == 0) {

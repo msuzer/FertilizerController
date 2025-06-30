@@ -24,6 +24,20 @@ esptool_path = os.path.join(
     "esptool.py"
 )
 
+def get_firmware_name():
+    try:
+        with open(system_context_header, 'r') as f:
+            content = f.read()
+            match = re.search(r'#define\s+FIRMWARE_NAME\s+"([^"]+)"', content)
+            if match:
+                raw_name = match.group(1)
+                sanitized = re.sub(r'\W+', '_', raw_name).strip('_').lower()
+                print(f"Detected FIRMWARE_NAME = {raw_name} → {sanitized}")
+                return sanitized
+    except Exception as e:
+        print("Could not read FIRMWARE_NAME from header:", e)
+    return "firmware"
+
 def get_firmware_version():
     try:
         with open(system_context_header, 'r') as f:
@@ -50,8 +64,8 @@ def get_device_version():
         print("Could not read DEVICE_VERSION from header:", e)
     return "unknown"
 
-def clean_previous_bins():
-    pattern = os.path.join(project_dir, "agro_fertilizer_fw_*.bin")
+def clean_previous_bins(app_name):
+    pattern = os.path.join(project_dir, f"{app_name}_v*.bin")
     old_files = glob.glob(pattern)
     for file_path in old_files:
         try:
@@ -63,8 +77,8 @@ def clean_previous_bins():
 def merge_bin_files(source, target, env):
     version = get_firmware_version()
     device_version = get_device_version()
-
-    board_label = f"agro_fertilizer_fw_v{version}_{device_version}"
+    app_name = get_firmware_name()
+    board_label = f"{app_name}_v{version}_{device_version}"
 
     # Format: DD_MM_YYYY
     date_str = datetime.now().strftime("%d_%m_%Y")
@@ -72,7 +86,7 @@ def merge_bin_files(source, target, env):
 
     final_output = os.path.join(project_dir, output_filename)
 
-    clean_previous_bins()
+    clean_previous_bins(app_name)
 
     print("Merging binaries...")
 
@@ -92,7 +106,6 @@ def merge_bin_files(source, target, env):
     try:
         result = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         print(result.stdout)
-        print(f"Combined binary created at: {final_output}")
     except subprocess.CalledProcessError as e:
         print("Error during merge_bin:")
         print(e.stderr)
