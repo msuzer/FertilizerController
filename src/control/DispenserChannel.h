@@ -21,10 +21,6 @@ class SystemContext; // Forward declaration
 
 #define FLOW_ERROR_WARNING_THRESHOLD    2.0f
 
-// I/O Operations
-static void writePwmESP32(uint8_t pin, uint8_t duty) { ledcWrite(pin, duty); }
-static void writeDigitalESP32(uint8_t pin, bool state) { digitalWrite(pin, state ? HIGH : LOW); }
-
 enum UserErrorCodes {
     NO_ERROR = 0,
     LIQUID_TANK_EMPTY = 1 << 0,
@@ -57,7 +53,9 @@ public:
     DispenserChannel(DispenserChannel&&) = delete;
     DispenserChannel& operator=(DispenserChannel&&) = delete;
 
-    void init(SystemContext* ctx, const VNH7070ASPins& motorPins);
+    void init(String name, SystemContext* ctx, const VNH7070ASPins& motorPins);
+    void printMotorCurrent(void);
+    void testMotorRamp(void);
 
     // Setters
     bool setTaskState(UserTaskState state);
@@ -139,10 +137,9 @@ public:
     void setBackwardLimitVoltage(float v) { backwardLimitVoltage = v; }
     void setAlignSpeed(int speed) { alignSpeed = speed; }
 private:
-    DispenserChannel(String name = "") : channelName(name) {channelIndex = (name == "Left") ? ADS1115Channels::CH0 : ADS1115Channels::CH1; }
+    DispenserChannel(String name = "") : channelName(name) { }
 
     String channelName;
-    int channelIndex = -1; // Index in the context channels array
     static SystemContext* context;
 
     PIController piController;

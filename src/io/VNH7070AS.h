@@ -14,19 +14,17 @@
 
 class DispenserChannel; // Forward declaration
 
-// C-style callback types
-typedef void (*DigitalWriteCallback)(uint8_t pin, bool state);
-typedef void (*PwmWriteCallback)(uint8_t pin, uint8_t duty);  // 0-255
-
 class VNH7070AS {
     friend class DispenserChannel; // Allow DispenserChannel to access private members
 public:
+    static constexpr int MAX_DUTY = 100;
+
     VNH7070AS(const VNH7070AS&) = delete;
     VNH7070AS& operator=(const VNH7070AS&) = delete;
     VNH7070AS(VNH7070AS&&) = delete;
     VNH7070AS& operator=(VNH7070AS&&) = delete;
 
-    void init(const VNH7070ASPins& pins, PwmWriteCallback pwmWriteFn, DigitalWriteCallback digitalWriteFn);
+    void init(const VNH7070ASPins& pins, const int pwmChannel = 0);
     void setSpeed(int8_t duty);  // -100 to +100, 0 = stop
     void stop();                 // INA/INB LOW
     void brake();                // INA/INB HIGH
@@ -38,8 +36,7 @@ private:
     VNH7070AS() : _pins{-1, -1, -1, -1} {} // invalid pins initially
 
     VNH7070ASPins _pins;
-    PwmWriteCallback _pwmWriteFn;
-    DigitalWriteCallback _digitalWriteFn;
     int stuckCounter = 0;
     bool _isStuck = false;
+    int _pwmChannel = 0; // Default PWM channel
 };

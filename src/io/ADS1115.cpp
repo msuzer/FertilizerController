@@ -25,10 +25,6 @@ static CircularBuffer ch1(buffer1, ADS1115_BUF_SIZE);
 static CircularBuffer ch2(buffer2, ADS1115_BUF_SIZE);
 static CircularBuffer ch3(buffer3, ADS1115_BUF_SIZE);
 
-// Your resistor values for current measurement
-const float Rtop = 4700.0f;   // 4.7k
-const float Rbottom = 1000.0f; // 1k
-
 // ADS1115 Register Addresses
 constexpr uint8_t ADS1115_REG_CONVERSION = 0x00;
 constexpr uint8_t ADS1115_REG_CONFIG     = 0x01;
@@ -185,8 +181,10 @@ float ADS1115::mapRawToFloat(int16_t raw, float conversionFactor, int16_t rawMin
 }
 
 float ADS1115::rawToCurrent(int16_t raw) const {
-  const float csSensitivity = 0.010f;
-  const float dividerFactor = (Rtop + Rbottom) / Rbottom; // 5.7
-  float csVoltage = rawToVoltage(raw) * dividerFactor;
-  return csVoltage / csSensitivity;
+  const float kFactor = 0.0014f;
+  const float Resistor = 10000.0f;   // 10.0k
+
+  const float dividerFactor = Resistor * kFactor;
+  float csVoltage = rawToVoltage(raw) / dividerFactor;
+  return csVoltage;
 }

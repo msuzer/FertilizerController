@@ -41,8 +41,8 @@ void SystemContext::init() {
     ads1115.setGain(ADS1115::Gain::FSR_4_096V); // Optional: Set gain
 
     prefs.init(*this);
-    leftChannel.init(this, leftChannelPins);
-    rightChannel.init(this, rightChannelPins);
+    leftChannel.init("Left", this, leftChannelPins);
+    rightChannel.init("Right", this, rightChannelPins);
 
     // Force both channels to STOPPED
     getLeftChannel().setTaskState(UserTaskState::Stopped);

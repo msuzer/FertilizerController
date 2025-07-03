@@ -23,6 +23,7 @@
 #include <Wire.h>
 #include <TinyGPSPlus.h>
 #include <stdarg.h>  // Required for va_list, va_start, va_end
+#include "driver/ledc.h"
 
 #include "ble/BLETextServer.h"
 #include "io/VNH7070AS.h"
@@ -110,6 +111,46 @@ esp_err_t setupPeriodicAlarmWrapper(const char* timerName, esp_timer_cb_t callba
     return ESP_OK;
 }
 
+#define DC_MOTOR_PWM_FREQ_HZ  1000    // 1 kHz
+#define DC_MOTOR_PWM1_PIN     VNH7070AS_PWM1Pin
+#define DC_MOTOR_PWM2_PIN     VNH7070AS_PWM2Pin
+
+void setupMCPWM(void) {
+  // Configure the LEDC timer
+  ledc_timer_config_t ledc_timer = {
+      .speed_mode       = LEDC_HIGH_SPEED_MODE,
+      .duty_resolution  = LEDC_TIMER_8_BIT,
+      .timer_num        = LEDC_TIMER_0,
+      .freq_hz          = DC_MOTOR_PWM_FREQ_HZ,
+      .clk_cfg          = LEDC_AUTO_CLK
+  };
+  ledc_timer_config(&ledc_timer);
+
+  // Configure channel 0
+  ledc_channel_config_t ledc_channel_0 = {
+      .gpio_num       = DC_MOTOR_PWM1_PIN,
+      .speed_mode     = LEDC_HIGH_SPEED_MODE,
+      .channel        = LEDC_CHANNEL_0,
+      .intr_type      = LEDC_INTR_DISABLE,
+      .timer_sel      = LEDC_TIMER_0,
+      .duty           = 0,
+      .hpoint         = 0
+  };
+  ledc_channel_config(&ledc_channel_0);
+
+  // Configure channel 1
+  ledc_channel_config_t ledc_channel_1 = {
+      .gpio_num       = DC_MOTOR_PWM2_PIN,
+      .speed_mode     = LEDC_HIGH_SPEED_MODE,
+      .channel        = LEDC_CHANNEL_1,
+      .intr_type      = LEDC_INTR_DISABLE,
+      .timer_sel      = LEDC_TIMER_0,
+      .duty           = 0,
+      .hpoint         = 0
+  };
+  ledc_channel_config(&ledc_channel_1);
+}
+
 void setup() {
   pinMode(RGB_LEDRPin, OUTPUT);
   pinMode(RGB_LEDGPin, OUTPUT);
@@ -134,6 +175,8 @@ void setup() {
   setupPeriodicAlarmWrapper("controlLoop_timer", 
     controlLoopUpdateCallback, TIMER_PERIOD_US(CONTROL_LOOP_UPDATE_FREQUENCY_HZ));
 
+  setupMCPWM(); // Initialize MCPWM for motor control
+
   context.init(); // Initialize all services
   
   DebugInfoPrinter::printTempSensorStatus(context.getTempSensor());
@@ -141,6 +184,9 @@ void setup() {
   BLETextServer& bleServer = context.getBLETextServer();
 
   bleServer.start();
+
+  // context.getLeftChannel().testMotorRamp();
+  // context.getRightChannel().testMotorRamp();
 }
 
 void loop() {
