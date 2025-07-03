@@ -107,7 +107,7 @@ public:
     float getProcessedAreaPerSec() const;
     void applyPIControl();
     void applyPIControl(float measured);
-    void alignToEnd(bool forward = true);
+    bool alignToEnd(bool forward = true, unsigned long timeoutMs = 5000); // Align to end with timeout
     void reportErrorFlags(void);
     const float getKgPerDaaInstantaneous(float potVoltage) const;
 

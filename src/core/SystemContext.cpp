@@ -91,6 +91,13 @@ float SystemContext::getGroundSpeed(bool useSim) const {
 }
 
 void SystemContext::writeRGBLEDs(uint8_t chR, uint8_t chG, uint8_t chB) {
+  if (isCommonAnode) {
+    // Common Anode: HIGH means OFF, LOW means ON
+    chR = (chR == HIGH) ? LOW : HIGH;
+    chG = (chG == HIGH) ? LOW : HIGH;
+    chB = (chB == HIGH) ? LOW : HIGH;
+  }
+
   digitalWrite(RGB_LEDRPin, chR);
   digitalWrite(RGB_LEDGPin, chG);
   digitalWrite(RGB_LEDBPin, chB);

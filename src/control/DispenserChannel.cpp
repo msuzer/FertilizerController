@@ -65,7 +65,7 @@ bool DispenserChannel::setTaskState(UserTaskState state) {
             LogUtils::info("[STATE] Cleared relevant error flags due to task state transition to %s\n", getTaskStateName());
             LogUtils::warn("[MOTOR] Aligning Motor To End\n");
 
-            alignToEnd();
+            alignToEnd(true, 10000); // Align to end with a 10 seconds timeout
         }
 
         return true;
@@ -218,21 +218,44 @@ void DispenserChannel::applyPIControl(float measured) {
   }
 }
 
-void DispenserChannel::alignToEnd(bool forward) {
+bool DispenserChannel::alignToEnd(bool forward, unsigned long timeoutMs) {
   const float TARGET_POS = forward ? forwardLimitVoltage : backwardLimitVoltage;
   const float TOLERANCE = 0.05f; // Voltage tolerance
-  const int ALIGN_SPEED = forward ? alignSpeed : -alignSpeed; // Fixed motor speed
+  const int ALIGN_SPEED = forward ? alignSpeed : -alignSpeed;
+  const unsigned long POLL_INTERVAL_MS = 50;
 
   ADS1115& ads1115 = context->getADS1115();
   uint8_t channelIndex = (channelName == "Left") ? ADS1115Channels::CH0 : ADS1115Channels::CH1;
-  float pos = ads1115.readFilteredVoltage(channelIndex);
 
-  if (abs(pos - TARGET_POS) > TOLERANCE) {
-      motorDriver.setSpeed(ALIGN_SPEED);
+  unsigned long startTime = millis();
+  float pos = ads1115.readFilteredVoltage(channelIndex);
+  bool reachedEnd = (abs(pos - TARGET_POS) <= TOLERANCE);
+
+  if (!reachedEnd) {
+    motorDriver.setSpeed(ALIGN_SPEED);
+
+    while (!reachedEnd && (millis() - startTime < timeoutMs)) {
+      delay(POLL_INTERVAL_MS);  // blocking wait
+      pos = ads1115.readFilteredVoltage(channelIndex);
+      reachedEnd = (abs(pos - TARGET_POS) <= TOLERANCE);
+    }
+
+    motorDriver.setSpeed(0);  // stop motor
+
+    if (reachedEnd) {
+      LogUtils::info("[MOTOR] [%s] Motor aligned to %s end.\n",
+                     channelName.c_str(), forward ? "FORWARD" : "BACKWARD");
+    } else {
+      LogUtils::warn("[MOTOR] [%s] Timeout while aligning to %s end!\n",
+                     channelName.c_str(), forward ? "FORWARD" : "BACKWARD");
+    }
   } else {
-      motorDriver.setSpeed(0);
-      LogUtils::info("[MOTOR] [%s] Motor aligned to %s end.\n", channelName.c_str(), forward ? "FORWARD" : "BACKWARD");
+    motorDriver.setSpeed(0);  // already at end
+    LogUtils::info("[MOTOR] [%s] Already at %s end.\n",
+                   channelName.c_str(), forward ? "FORWARD" : "BACKWARD");
   }
+
+  return reachedEnd;
 }
 
 const float DispenserChannel::getKgPerDaaInstantaneous(float potVoltage) const {
