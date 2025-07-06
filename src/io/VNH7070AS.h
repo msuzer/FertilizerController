@@ -11,6 +11,8 @@
 
 #include "VNH7070ASPins.h"
 #include <stdint.h>
+#include <Arduino.h>
+#include <driver/ledc.h>
 
 class DispenserChannel; // Forward declaration
 
@@ -24,7 +26,7 @@ public:
     VNH7070AS(VNH7070AS&&) = delete;
     VNH7070AS& operator=(VNH7070AS&&) = delete;
 
-    void init(const VNH7070ASPins& pins, const int pwmChannel = 0);
+    void init(const VNH7070ASPins& pins, const int channel = LEDC_CHANNEL_0); // Default to channel 0
     void setSpeed(int8_t duty);  // -100 to +100, 0 = stop
     void stop();                 // INA/INB LOW
     void brake();                // INA/INB HIGH
@@ -38,5 +40,5 @@ private:
     VNH7070ASPins _pins;
     int stuckCounter = 0;
     bool _isStuck = false;
-    int _pwmChannel = 0; // Default PWM channel
+    ledc_channel_t _pwmChannel = LEDC_CHANNEL_0; // Default to channel 0
 };

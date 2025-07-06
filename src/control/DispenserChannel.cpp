@@ -13,6 +13,7 @@
 #include "ble/UserInfoFormatter.h"
 #include "core/LogUtils.h"
 #include "core/DebugInfoPrinter.h"
+#include "core/Constants.h"
 #include <driver/ledc.h>
 
 float DispenserChannel::tankLevel = 0.0f; // Default tank level
@@ -22,7 +23,14 @@ SystemContext* DispenserChannel::context = nullptr;
 void DispenserChannel::init(String name, SystemContext* ctx, const VNH7070ASPins &motorPins) {
   context = ctx;
   channelName = name;
-  uint8_t channelIndex = (channelName == "Left") ? LEDC_CHANNEL_0 : LEDC_CHANNEL_1;
+  channelIndex = 0;
+  adcChannel = ADS1115Channels::CH0;  
+
+  if (name == "Right") {
+    channelIndex = 1;
+    adcChannel = ADS1115Channels::CH1;
+  }
+
   motorDriver.init(motorPins, channelIndex);
 }
 
@@ -64,8 +72,6 @@ bool DispenserChannel::setTaskState(UserTaskState state) {
 
             LogUtils::info("[STATE] Cleared relevant error flags due to task state transition to %s\n", getTaskStateName());
             LogUtils::warn("[MOTOR] Aligning Motor To End\n");
-
-            alignToEnd(true, 10000); // Align to end with a 10 seconds timeout
         }
 
         return true;
@@ -151,7 +157,7 @@ void DispenserChannel::updateTaskMetrics() {
 
         increaseDistanceTaken(groundSpeedMPS * deltaTime);
         increaseAreaProcessed(processedAreaPerSec);
-        incrementTaskDuration();
+        incrementApplicationDuration();
 
         float slice = flowRatePerMin / 60.0f;
         decreaseTankLevel(slice);
@@ -197,77 +203,66 @@ void DispenserChannel::updateTaskMetrics() {
 }
 
 float DispenserChannel::getProcessedAreaPerSec() const {
+  // Area covered per second in m²/s = speed × boom width
   return context->getGroundSpeed(true) * getBoomWidth();
 }
 
-void DispenserChannel::applyPIControl() {
-  ADS1115& ads1115 = context->getADS1115();
-  uint8_t channelIndex = (channelName == "Left") ? ADS1115Channels::CH0 : ADS1115Channels::CH1;
-  float measured = ads1115.readFilteredVoltage(channelIndex);
-  applyPIControl(measured);
+float DispenserChannel::getTargetPositionForRate(float desiredKgPerDaa) const {
+    float areaPerSec = getProcessedAreaPerSec();
+    if (!isfinite(areaPerSec) || areaPerSec <= 0.0f || flowCoeff <= 0.0f) return 0.0f;
+
+    float desiredFlowPerSec = (desiredKgPerDaa / Units::SQUARE_METERS_PER_DAA) * areaPerSec;
+    float desiredPositionPercent = desiredFlowPerSec * flowCoeff;
+
+    return constrain(desiredPositionPercent, 0.0f, 100.0f);
 }
 
-void DispenserChannel::applyPIControl(float measured) {
+float DispenserChannel::getCurrentPositionPercent() const {
+    float voltage = context->getADS1115().readFilteredVoltage(adcChannel);
+    voltage = constrain(voltage, MIN_POT_VOLTAGE, MAX_POT_VOLTAGE);
+    
+    return (voltage - MIN_POT_VOLTAGE) / (MAX_POT_VOLTAGE - MIN_POT_VOLTAGE) * 100.0f;
+}
+
+float DispenserChannel::computeTargetPositionForControl() {
+    float target = 0.0f;
+
+    switch (getTaskState()) {
+        case UserTaskState::Started:
+        case UserTaskState::Resuming:
+            target = getTargetPositionForRate(targetFlowRatePerDaa);
+            if (target > 0.0f) lastKnownTargetPosition = target;
+            break;
+
+        case UserTaskState::Paused:
+        case UserTaskState::Stopped:
+        default:
+            target = 0.0f;
+            break;
+    }
+
+    return target;
+}
+
+/*
+  position zero means no flow, position 100 means maximum flow.
+  The position is calculated based on the voltage read from the potentiometer.
+  The voltage is mapped to a percentage of the full range (0-100%).
+*/
+void DispenserChannel::applyPIControl() {
+  float measured = getCurrentPositionPercent();
+  float target = computeTargetPositionForControl();
+
+  applyPIControl(target, measured);
+}
+
+void DispenserChannel::applyPIControl(float target, float measured) {
   if (isTaskActive()) {
-    float target = getTargetFlowRatePerMin();
-    // measured = getKgPerDaaInstantaneous(measured);
     float signal = piController.compute(target, measured);
     if (piController.isControlSignalChanged()) {
       motorDriver.setSpeed(static_cast<int8_t>(signal));
     }
   }
-}
-
-bool DispenserChannel::alignToEnd(bool forward, unsigned long timeoutMs) {
-  const float TARGET_POS = forward ? forwardLimitVoltage : backwardLimitVoltage;
-  const float TOLERANCE = 0.05f; // Voltage tolerance
-  const int ALIGN_SPEED = forward ? alignSpeed : -alignSpeed;
-  const unsigned long POLL_INTERVAL_MS = 50;
-
-  ADS1115& ads1115 = context->getADS1115();
-  uint8_t channelIndex = (channelName == "Left") ? ADS1115Channels::CH0 : ADS1115Channels::CH1;
-
-  unsigned long startTime = millis();
-  float pos = ads1115.readFilteredVoltage(channelIndex);
-  bool reachedEnd = (abs(pos - TARGET_POS) <= TOLERANCE);
-
-  if (!reachedEnd) {
-    motorDriver.setSpeed(ALIGN_SPEED);
-
-    while (!reachedEnd && (millis() - startTime < timeoutMs)) {
-      delay(POLL_INTERVAL_MS);  // blocking wait
-      pos = ads1115.readFilteredVoltage(channelIndex);
-      reachedEnd = (abs(pos - TARGET_POS) <= TOLERANCE);
-    }
-
-    motorDriver.setSpeed(0);  // stop motor
-
-    if (reachedEnd) {
-      LogUtils::info("[MOTOR] [%s] Motor aligned to %s end.\n",
-                     channelName.c_str(), forward ? "FORWARD" : "BACKWARD");
-    } else {
-      LogUtils::warn("[MOTOR] [%s] Timeout while aligning to %s end!\n",
-                     channelName.c_str(), forward ? "FORWARD" : "BACKWARD");
-    }
-  } else {
-    motorDriver.setSpeed(0);  // already at end
-    LogUtils::info("[MOTOR] [%s] Already at %s end.\n",
-                   channelName.c_str(), forward ? "FORWARD" : "BACKWARD");
-  }
-
-  return reachedEnd;
-}
-
-const float DispenserChannel::getKgPerDaaInstantaneous(float potVoltage) const {
-    float flowKgPerSec = potVoltage * flowCoeff;
-
-    float areaPerSec = getProcessedAreaPerSec();
-
-    if (areaPerSec > 0.0f) {
-        return (flowKgPerSec / areaPerSec) * 1000.0f;
-    } else {
-        return 0.0f; // avoid division by zero
-    }
 }
 
 void DispenserChannel::printMotorCurrent(void) {

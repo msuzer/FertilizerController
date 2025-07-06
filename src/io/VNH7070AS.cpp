@@ -15,9 +15,9 @@
 #define STUCK_CURRENT_THRESHOLD     2.5f // Amps (example)
 #define STUCK_DETECTION_COUNT       5        // Number of consecutive samples
 
-void VNH7070AS::init(const VNH7070ASPins& pins, const int pwmChannel) {
+void VNH7070AS::init(const VNH7070ASPins& pins, const int channel) {
     _pins = pins;
-    _pwmChannel = pwmChannel;
+    _pwmChannel = (channel == 0) ? LEDC_CHANNEL_0 : LEDC_CHANNEL_1;
 
     // Initialize pins
     pinMode(_pins.INA, OUTPUT);

@@ -159,14 +159,14 @@ void CommandHandler::handlerGetTaskInfo(const ParsedInstruction& instr) {
         left.getTargetFlowRatePerDaa(), left.getTargetFlowRatePerMin(),
         left.getRealFlowRatePerDaa(), left.getRealFlowRatePerMin(),
         (int) DispenserChannel::getTankLevel(),
-        left.getAreaCompleted(), left.getTaskDuration(), left.getLiquidConsumed()
+        left.getAreaCompleted(), left.getApplicationDuration(), left.getLiquidConsumed()
     };
 
     UserInfoFormatter::TaskChannelInfoData rightData = {
         right.getTargetFlowRatePerDaa(), right.getTargetFlowRatePerMin(),
         right.getRealFlowRatePerDaa(), right.getRealFlowRatePerMin(),
         (int) DispenserChannel::getTankLevel(),
-        right.getAreaCompleted(), right.getTaskDuration(), right.getLiquidConsumed()
+        right.getAreaCompleted(), right.getApplicationDuration(), right.getLiquidConsumed()
     };
 
     String packet = UserInfoFormatter::makeTaskInfoPacket(leftData, rightData);
@@ -187,7 +187,7 @@ void CommandHandler::handlerStartNewTask(const ParsedInstruction& instr) {
     float ftemp = context->getPrefs().getFloat(PrefKey::KEY_TANK_LEVEL, DEFAULT_TANK_INITIAL_LEVEL);
     DispenserChannel::setTankLevel(ftemp);
 
-    context->getLeftChannel().clearTaskDuration();
+    context->getLeftChannel().clearApplicationDuration();
     context->getLeftChannel().clearLiquidConsumed();
     context->getLeftChannel().clearAreaCompleted();
     context->getLeftChannel().clearDistanceTaken();

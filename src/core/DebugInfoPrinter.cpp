@@ -82,7 +82,7 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
     // Task state and metrics
     LogUtils::info(" LEFT  [TASK] State: %s | Duration: %d s | Distance: %d m | AreaDone: %.2f daa | LiquidUsed: %.2f L\n",
            left.getTaskStateName(),
-           left.getTaskDuration(),
+           left.getApplicationDuration(),
            left.getDistanceTaken(),
            left.getAreaCompleted(),
            left.getLiquidConsumed()
@@ -90,7 +90,7 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
 
     LogUtils::info(" RIGHT [TASK] State: %s | Duration: %d s | Distance: %d m | AreaDone: %.2f daa | LiquidUsed: %.2f L\n",
            right.getTaskStateName(),
-           right.getTaskDuration(),
+           right.getApplicationDuration(),
            right.getDistanceTaken(),
            right.getAreaCompleted(),
            right.getLiquidConsumed()

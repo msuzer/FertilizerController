@@ -45,6 +45,9 @@ enum class UserTaskState {
     Resuming
 };
 
+constexpr float MIN_POT_VOLTAGE = 0.00f; // Minimum voltage for potentiometer
+constexpr float MAX_POT_VOLTAGE = 3.30f; // Maximum voltage for potentiometer
+
 class DispenserChannel {
     friend class SystemContext; // Allow SystemContext to access private members
 public:
@@ -106,23 +109,21 @@ public:
     void updateTaskMetrics();
     float getProcessedAreaPerSec() const;
     void applyPIControl();
-    void applyPIControl(float measured);
-    bool alignToEnd(bool forward = true, unsigned long timeoutMs = 5000); // Align to end with timeout
+    void applyPIControl(float target, float measured);
     void reportErrorFlags(void);
-    const float getKgPerDaaInstantaneous(float potVoltage) const;
 
     // Task metrics per channel
-    inline void incrementTaskDuration() { taskDuration++; }
+    inline void incrementApplicationDuration() { applicationDuration++; }
     inline void increaseDistanceTaken(int length) { distanceTaken += length; }
     inline void increaseAreaProcessed(float value) { areaCompleted += value; }
     inline void increaseLiquidConsumed(float value) { liquidConsumed += value; }
     
-    inline void clearTaskDuration() { taskDuration = 0; }
+    inline void clearApplicationDuration() { applicationDuration = 0; }
     inline void clearDistanceTaken() { distanceTaken = 0; }
     inline void clearAreaCompleted() { areaCompleted = 0.0f; }
     inline void clearLiquidConsumed() { liquidConsumed = 0.0f; }
     
-    inline int getTaskDuration() const { return taskDuration; }
+    inline int getApplicationDuration() const { return applicationDuration; }
     inline int getDistanceTaken() const { return distanceTaken; }
     inline float getAreaCompleted() const { return areaCompleted; }
     inline float getLiquidConsumed() const { return liquidConsumed; }
@@ -133,13 +134,15 @@ public:
     inline static void setTankLevel(float level) { tankLevel = level; }
     inline static void setClientInWorkZone(bool inWorkZone) { clientInWorkZone = inWorkZone; }
 
-    void setForwardLimitVoltage(float v) { forwardLimitVoltage = v; }
-    void setBackwardLimitVoltage(float v) { backwardLimitVoltage = v; }
-    void setAlignSpeed(int speed) { alignSpeed = speed; }
+    float getCurrentPositionPercent() const;
+    float getTargetPositionForRate(float desiredKgPerDaa) const;
+    float computeTargetPositionForControl();
 private:
     DispenserChannel(String name = "") : channelName(name) { }
 
     String channelName;
+    uint8_t channelIndex = 0;  // CH0 for left, CH1 for right
+    ADS1115Channels adcChannel = ADS1115Channels::CH0; // Default to CH0
     static SystemContext* context;
 
     PIController piController;
@@ -156,7 +159,7 @@ private:
     UserTaskState taskState = UserTaskState::Stopped;
     uint32_t errorFlags = NO_ERROR;
 
-    int taskDuration = 0;
+    int applicationDuration = 0;
     int distanceTaken = 0;
     float areaCompleted = 0.0f;
     float liquidConsumed = 0.0f;
@@ -166,7 +169,5 @@ private:
 
     float boomWidth = 0.0f; // in meters, used for area calculations
 
-    float forwardLimitVoltage = 3.0f;  // e.g. 2.50V
-    float backwardLimitVoltage = 0.15f; // e.g. 0.50V
-    int alignSpeed = 50; // Speed for alignment in percent
+    float lastKnownTargetPosition = 0.0f;
 };
