@@ -14,7 +14,7 @@
 
 class DispenserChannel; // Forward declaration
 
-#define CONTROL_LOOP_UPDATE_FREQUENCY_HZ      10 // Control loop frequency in Hz
+constexpr int CONTROL_LOOP_UPDATE_FREQUENCY_HZ = 10; // Control loop frequency in Hz
 
 class PIController {
     friend class DispenserChannel; // Allow DispenserChannel to access private members
@@ -36,11 +36,9 @@ public:
     float compute(float setpoint, float measurement);
     void reset(); // Reset integral term
 private:
-    PIController(float Kp = DEFAULT_KP_VALUE, float Ki = DEFAULT_KI_VALUE, float outputMin = -100.0f, float outputMax = 100.0f)
-    : _Kp(Kp), _Ki(Ki), _outputMin(outputMin), _outputMax(outputMax), _integral(0.0f) { }
+    PIController(float Kp = DEFAULT_KP_VALUE, float Ki = DEFAULT_KI_VALUE)
+    : _Kp(Kp), _Ki(Ki), _integral(0.0f) { reset(); }
 
     float dt = 1.0f / CONTROL_LOOP_UPDATE_FREQUENCY_HZ;
-    float _Kp, _Ki;
-    float controlSignal, _outputMin, _outputMax;
-    float error, _integral;
+    float _Kp, _Ki, controlSignal, error, _integral;
 };

@@ -19,7 +19,9 @@
 
 class SystemContext; // Forward declaration
 
-#define FLOW_ERROR_WARNING_THRESHOLD    2.0f
+constexpr float FLOW_ERROR_WARNING_THRESHOLD = 2.0f;
+constexpr float MIN_POT_VOLTAGE = 0.00f; // Minimum voltage for potentiometer
+constexpr float MAX_POT_VOLTAGE = 3.30f; // Maximum voltage for potentiometer
 
 enum UserErrorCodes {
     NO_ERROR = 0,
@@ -45,9 +47,6 @@ enum class UserTaskState {
     Resuming,
     Testing
 };
-
-constexpr float MIN_POT_VOLTAGE = 0.00f; // Minimum voltage for potentiometer
-constexpr float MAX_POT_VOLTAGE = 3.30f; // Maximum voltage for potentiometer
 
 class DispenserChannel {
     friend class SystemContext; // Allow SystemContext to access private members

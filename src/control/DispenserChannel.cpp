@@ -72,10 +72,15 @@ bool DispenserChannel::setTaskState(UserTaskState state) {
                 HARDWARE_ERROR;
 
             clearError(ERRORS_TO_CLEAR);
+
+            LogUtils::info("[STATE] Cleared relevant error flags due to task state transition to %s\n", getTaskStateName());
+            LogUtils::warn("[MOTOR] Aligning Motor To End\n");
         }
 
         return true;
     }
+
+    LogUtils::warn("[STATE] Invalid state transition: %s → %s\n", getTaskStateName(), taskStateToString(state));
 
     return false;
 }
@@ -240,7 +245,8 @@ void DispenserChannel::applyPIControl() {
     if (testTick >= 120) { // additional 20 ticks to keep servo staying at 100% for 2 secs.
       testDirection = false; // Reverse direction
     } else if (testTick <= 0) {
-      setTaskState(UserTaskState::Stopped); // Stop after one full cycle
+      // do not call 'setTaskState()' here (from timer isr), it logs to serial port which takes too long
+      taskState = UserTaskState::Stopped; // Stop after one full cycle
       testTick = 0; // Reset test tick on stop
       testDirection = true;
     }
