@@ -42,7 +42,8 @@ enum class UserTaskState {
     Stopped,
     Started,
     Paused,
-    Resuming
+    Resuming,
+    Testing
 };
 
 constexpr float MIN_POT_VOLTAGE = 0.00f; // Minimum voltage for potentiometer
@@ -136,7 +137,6 @@ public:
 
     float getCurrentPositionPercent() const;
     float getTargetPositionForRate(float desiredKgPerDaa) const;
-    float computeTargetPositionForControl();
 private:
     DispenserChannel(String name = "") : channelName(name) { }
 
@@ -169,5 +169,6 @@ private:
 
     float boomWidth = 0.0f; // in meters, used for area calculations
 
-    float lastKnownTargetPosition = 0.0f;
+    int testTick = 0;
+    bool testDirection = true;  // true = forward, false = backward
 };

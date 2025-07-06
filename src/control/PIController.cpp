@@ -10,6 +10,9 @@
 #include "PIController.h"
 
 float PIController::compute(float setpoint, float measurement) {
+    setpoint = constrain(setpoint, 0.0f, 100.0f);
+    measurement = constrain(measurement, 0.0f, 100.0f);
+    
     error = setpoint - measurement;
 
     // Update integral
@@ -26,10 +29,7 @@ float PIController::compute(float setpoint, float measurement) {
     }
 
     controlSignal = _Kp * error + _Ki * _integral;
-
-    // Clamp output
-    if (controlSignal > _outputMax) controlSignal = _outputMax;
-    if (controlSignal < _outputMin) controlSignal = _outputMin;
+    controlSignal = constrain(controlSignal, _outputMin, _outputMax);
 
     return controlSignal;
 }

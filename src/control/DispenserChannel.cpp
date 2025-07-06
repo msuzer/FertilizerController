@@ -39,7 +39,7 @@ bool DispenserChannel::setTaskState(UserTaskState state) {
 
     switch (taskState) {
         case UserTaskState::Stopped:
-            validOp = (state == UserTaskState::Started);
+            validOp = (state == UserTaskState::Started || state == UserTaskState::Testing);
             break;
         case UserTaskState::Started:
             validOp = (state == UserTaskState::Paused || state == UserTaskState::Stopped);
@@ -49,6 +49,9 @@ bool DispenserChannel::setTaskState(UserTaskState state) {
             break;
         case UserTaskState::Resuming:
             validOp = (state == UserTaskState::Started || state == UserTaskState::Paused || state == UserTaskState::Stopped);
+            break;
+        case UserTaskState::Testing:
+            validOp = (state == UserTaskState::Stopped);
             break;
     }
 
@@ -69,15 +72,11 @@ bool DispenserChannel::setTaskState(UserTaskState state) {
                 HARDWARE_ERROR;
 
             clearError(ERRORS_TO_CLEAR);
-
-            LogUtils::info("[STATE] Cleared relevant error flags due to task state transition to %s\n", getTaskStateName());
-            LogUtils::warn("[MOTOR] Aligning Motor To End\n");
         }
 
         return true;
     }
 
-    LogUtils::warn("[STATE] Invalid state transition: %s → %s\n", getTaskStateName(), taskStateToString(state));
     return false;
 }
 
@@ -224,26 +223,6 @@ float DispenserChannel::getCurrentPositionPercent() const {
     return (voltage - MIN_POT_VOLTAGE) / (MAX_POT_VOLTAGE - MIN_POT_VOLTAGE) * 100.0f;
 }
 
-float DispenserChannel::computeTargetPositionForControl() {
-    float target = 0.0f;
-
-    switch (getTaskState()) {
-        case UserTaskState::Started:
-        case UserTaskState::Resuming:
-            target = getTargetPositionForRate(targetFlowRatePerDaa);
-            if (target > 0.0f) lastKnownTargetPosition = target;
-            break;
-
-        case UserTaskState::Paused:
-        case UserTaskState::Stopped:
-        default:
-            target = 0.0f;
-            break;
-    }
-
-    return target;
-}
-
 /*
   position zero means no flow, position 100 means maximum flow.
   The position is calculated based on the voltage read from the potentiometer.
@@ -251,17 +230,31 @@ float DispenserChannel::computeTargetPositionForControl() {
 */
 void DispenserChannel::applyPIControl() {
   float measured = getCurrentPositionPercent();
-  float target = computeTargetPositionForControl();
+  float target = getTargetPositionForRate(targetFlowRatePerDaa);
+
+  if (getTaskState() == UserTaskState::Paused || getTaskState() == UserTaskState::Stopped) {
+    target = 0.0f; // If stopped, no flow
+  } else if (getTaskState() == UserTaskState::Testing) {
+    testTick += (testDirection ? 1 : -1);
+
+    if (testTick >= 120) { // additional 20 ticks to keep servo staying at 100% for 2 secs.
+      testDirection = false; // Reverse direction
+    } else if (testTick <= 0) {
+      setTaskState(UserTaskState::Stopped); // Stop after one full cycle
+      testTick = 0; // Reset test tick on stop
+      testDirection = true;
+    }
+
+    target = testTick;
+  }
 
   applyPIControl(target, measured);
 }
 
 void DispenserChannel::applyPIControl(float target, float measured) {
-  if (isTaskActive()) {
-    float signal = piController.compute(target, measured);
-    if (piController.isControlSignalChanged()) {
-      motorDriver.setSpeed(static_cast<int8_t>(signal));
-    }
+  float signal = piController.compute(target, measured);
+  if (piController.isControlSignalChanged()) {
+    motorDriver.setSpeed(static_cast<int8_t>(signal));
   }
 }
 
