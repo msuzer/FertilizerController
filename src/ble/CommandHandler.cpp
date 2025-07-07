@@ -158,15 +158,15 @@ void CommandHandler::handlerGetTaskInfo(const ParsedInstruction& instr) {
     UserInfoFormatter::TaskChannelInfoData leftData = {
         left.getTargetFlowRatePerDaa(), left.getTargetFlowRatePerMin(),
         left.getRealFlowRatePerDaa(), left.getRealFlowRatePerMin(),
-        (int) DispenserChannel::getTankLevel(),
-        left.getAreaCompleted(), left.getApplicationDuration(), left.getLiquidConsumed()
+        (int) ApplicationMetrics::getTankLevel(),
+        left.getMetrics().getArea(), left.getMetrics().getDuration(), left.getMetrics().getConsumption()
     };
 
     UserInfoFormatter::TaskChannelInfoData rightData = {
         right.getTargetFlowRatePerDaa(), right.getTargetFlowRatePerMin(),
         right.getRealFlowRatePerDaa(), right.getRealFlowRatePerMin(),
-        (int) DispenserChannel::getTankLevel(),
-        right.getAreaCompleted(), right.getApplicationDuration(), right.getLiquidConsumed()
+        (int) ApplicationMetrics::getTankLevel(),
+        right.getMetrics().getArea(), right.getMetrics().getDuration(), right.getMetrics().getConsumption()
     };
 
     String packet = UserInfoFormatter::makeTaskInfoPacket(leftData, rightData);
@@ -175,8 +175,8 @@ void CommandHandler::handlerGetTaskInfo(const ParsedInstruction& instr) {
 
 void CommandHandler::handlerReportPIParams(const ParsedInstruction& instr) {
     UserInfoFormatter::PIInfoData piData = {
-        context->getLeftChannel().getPIKp(),
-        context->getLeftChannel().getPIKi()
+        context->getLeftChannel().getPIController().getPIKp(),
+        context->getLeftChannel().getPIController().getPIKi()
     };
 
     String packet = UserInfoFormatter::makePIPacket(piData);
@@ -185,14 +185,16 @@ void CommandHandler::handlerReportPIParams(const ParsedInstruction& instr) {
 
 void CommandHandler::handlerStartNewTask(const ParsedInstruction& instr) {
     float ftemp = context->getPrefs().getFloat(PrefKey::KEY_TANK_LEVEL, DEFAULT_TANK_INITIAL_LEVEL);
-    DispenserChannel::setTankLevel(ftemp);
+    ApplicationMetrics::setTankLevel(ftemp);
+    ApplicationMetrics &metrics = context->getLeftChannel().getMetrics();
 
-    context->getLeftChannel().clearApplicationDuration();
-    context->getLeftChannel().clearLiquidConsumed();
-    context->getLeftChannel().clearAreaCompleted();
-    context->getLeftChannel().clearDistanceTaken();
+    // TODO : consider resetting right channel metrics as well
+    metrics.clearDuration();
+    metrics.clearConsumption();
+    metrics.clearArea();
+    metrics.clearDistance();
+
     context->getLeftChannel().clearAllErrors();
-
     context->getLeftChannel().setTaskState(UserTaskState::Started);
 }
 
@@ -273,10 +275,10 @@ void CommandHandler::handlerSetSimSpeed(const ParsedInstruction& instr) {
 
 void CommandHandler::handlerSetTankLevel(const ParsedInstruction& instr) {
     if (instr.postParamType == ParamType::INT) {
-        DispenserChannel::setTankLevel(instr.postParam.i);
-        context->getPrefs().save(PrefKey::KEY_TANK_LEVEL, DispenserChannel::getTankLevel());
+        ApplicationMetrics::setTankLevel(instr.postParam.i);
+        context->getPrefs().save(PrefKey::KEY_TANK_LEVEL, ApplicationMetrics::getTankLevel());
     }
-    context->getBLETextServer().notifyValue(CMD_SET_TANK_LEVEL, DispenserChannel::getTankLevel());
+    context->getBLETextServer().notifyValue(CMD_SET_TANK_LEVEL, ApplicationMetrics::getTankLevel());
 }
 
 void CommandHandler::handlerSetAutoRefreshPeriod(const ParsedInstruction& instr) {
@@ -302,21 +304,27 @@ void CommandHandler::handlerGetErrorInfo(const ParsedInstruction& instr) {
 }
 
 void CommandHandler::handlerSetPIDKp(const ParsedInstruction& instr) {
+    PIController& leftPI = context->getLeftChannel().getPIController();
+    PIController& rightPI = context->getRightChannel().getPIController();
+
     if (instr.postParamType == ParamType::FLOAT) {
-        context->getLeftChannel().setPIKp(instr.postParam.f);
-        context->getRightChannel().setPIKp(instr.postParam.f);
-        context->getPrefs().save(PrefKey::KEY_PI_KP, context->getLeftChannel().getPIKp());
+        leftPI.setPIKp(instr.postParam.f);
+        rightPI.setPIKp(instr.postParam.f);
+        context->getPrefs().save(PrefKey::KEY_PI_KP, leftPI.getPIKp());
     }
-    context->getBLETextServer().notifyValue(CMD_SET_PI_KP, context->getLeftChannel().getPIKp());
+    context->getBLETextServer().notifyValue(CMD_SET_PI_KP, leftPI.getPIKp());
 }
 
 void CommandHandler::handlerSetPIDKi(const ParsedInstruction& instr) {
+    PIController& leftPI = context->getLeftChannel().getPIController();
+    PIController& rightPI = context->getRightChannel().getPIController();
+
     if (instr.postParamType == ParamType::FLOAT) {
-        context->getLeftChannel().setPIKi(instr.postParam.f);
-        context->getRightChannel().setPIKi(instr.postParam.f);
-        context->getPrefs().save(PrefKey::KEY_PI_KI, context->getLeftChannel().getPIKi());
+        leftPI.setPIKi(instr.postParam.f);
+        rightPI.setPIKi(instr.postParam.f);
+        context->getPrefs().save(PrefKey::KEY_PI_KI, leftPI.getPIKi());
     }
-    context->getBLETextServer().notifyValue(CMD_SET_PI_KI, context->getLeftChannel().getPIKi());
+    context->getBLETextServer().notifyValue(CMD_SET_PI_KI, leftPI.getPIKi());
 }
 
 void CommandHandler::handlerReportUserParams(const ParsedInstruction& instr) {

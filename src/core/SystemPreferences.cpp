@@ -56,7 +56,7 @@ void SystemPreferences::init(SystemContext& ctx) {
     params.minWorkingSpeed = prefs.getFloat(keyNames[KEY_MIN_SPEED], DEFAULT_MIN_WORKING_SPEED);
     params.autoRefreshPeriod = prefs.getInt(keyNames[KEY_REFRESH], DEFAULT_AUTO_REFRESH_PERIOD);
     params.heartBeatPeriod = prefs.getInt(keyNames[KEY_HEARTBEAT], DEFAULT_HEARTBEAT_PERIOD);
-    DispenserChannel::setTankLevel(prefs.getFloat(keyNames[KEY_TANK_LEVEL], DEFAULT_TANK_INITIAL_LEVEL));
+    ApplicationMetrics::setTankLevel(prefs.getFloat(keyNames[KEY_TANK_LEVEL], DEFAULT_TANK_INITIAL_LEVEL));
 
     auto& left = ctx.getLeftChannel();
     left.setTargetFlowRatePerDaa(prefs.getFloat(keyNames[KEY_LEFT_RATE_DAA], DEFAULT_TARGET_RATE_KG_DAA));
@@ -72,8 +72,8 @@ void SystemPreferences::init(SystemContext& ctx) {
 
     float kp = prefs.getFloat(keyNames[KEY_PI_KP], DEFAULT_KP_VALUE);
     float ki = prefs.getFloat(keyNames[KEY_PI_KI], DEFAULT_KI_VALUE);
-    ctx.getLeftChannel().setPIParams(kp, ki);
-    ctx.getRightChannel().setPIParams(kp, ki);
+    ctx.getLeftChannel().getPIController().setPIParams(kp, ki);
+    ctx.getRightChannel().getPIController().setPIParams(kp, ki);
 
     prefs.end();
 }

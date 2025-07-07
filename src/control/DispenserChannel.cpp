@@ -16,7 +16,9 @@
 #include "core/Constants.h"
 #include <driver/ledc.h>
 
-float DispenserChannel::tankLevel = 0.0f; // Default tank level
+// Define the static variable
+float ApplicationMetrics::tankLevel = 0.0f;
+
 bool DispenserChannel::clientInWorkZone = false; // Default client work zone status
 SystemContext* DispenserChannel::context = nullptr;
 
@@ -159,13 +161,11 @@ void DispenserChannel::updateTaskMetrics() {
         // Update shared metrics only once per update (safe here — same slice for both channels)
         float processedAreaPerSec = getProcessedAreaPerSec();
 
-        increaseDistanceTaken(groundSpeedMPS * deltaTime);
-        increaseAreaProcessed(processedAreaPerSec);
-        incrementApplicationDuration();
-
-        float slice = flowRatePerMin / 60.0f;
-        decreaseTankLevel(slice);
-        increaseLiquidConsumed(slice);
+        // Update metrics
+        metrics.increaseDistance(groundSpeedMPS * deltaTime);
+        metrics.increaseArea(processedAreaPerSec);
+        metrics.incrementDuration();
+        metrics.applyFlowSlice(flowRatePerMin);
 
         LogUtils::info("[FLOW] Ground Speed, Boom Width and Min Flow OK for one channel!\n");
 
@@ -192,7 +192,7 @@ void DispenserChannel::updateTaskMetrics() {
     }
 
     // Tank level check (same for both)
-    if (getTankLevel() > 0.0f) {
+    if (metrics.getTankLevel() > 0.0f) {
       clearError(LIQUID_TANK_EMPTY);
     } else {
       setError(LIQUID_TANK_EMPTY);

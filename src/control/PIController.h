@@ -28,6 +28,7 @@ public:
     const float getPIKi(void) const {return _Ki; }
     void setPIKp(float value) { _Kp = value; }
     void setPIKi(float value) { _Ki = value; }
+    void setPIParams(float Kp, float Ki) { _Kp = Kp; _Ki = Ki; }
     float getError(void) const { return error; }
     bool isControlSignalChanged(void);
     const int getControlSignal(void) const {return controlSignal; }

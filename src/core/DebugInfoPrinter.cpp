@@ -55,6 +55,8 @@ String DebugInfoPrinter::formatErrorFlags(uint32_t errorFlags) {
 void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
     const DispenserChannel& left = context.getLeftChannel();
     const DispenserChannel& right = context.getRightChannel();
+    const ApplicationMetrics& leftMetrics = left.getMetrics();
+    const ApplicationMetrics& rightMetrics = right.getMetrics();
 
     // Main PI control debug line
     LogUtils::info("[LOG] Time: %lu\n", millis());
@@ -64,9 +66,9 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
            left.getRealFlowRatePerMin(),
            left.getPIController().getError(),
            left.getPIController().getControlSignal(),
-           left.getDistanceTaken(),
+           leftMetrics.getDistance(),
            left.getProcessedAreaPerSec(),
-           left.getLiquidConsumed()
+           leftMetrics.getConsumption()
     );
 
     LogUtils::info(" RIGHT | TargetFlow: %.2f | RealFlow: %.2f | Error: %.2f | CtrlSig: %d | Distance: %d | AreaPerSec: %.2f | Liquid: %.2f\n",
@@ -74,26 +76,26 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
            right.getRealFlowRatePerMin(),
            right.getPIController().getError(),
            right.getPIController().getControlSignal(),
-           right.getDistanceTaken(),
+           rightMetrics.getDistance(),
            right.getProcessedAreaPerSec(),
-           right.getLiquidConsumed()
+           rightMetrics.getConsumption()
     );
 
     // Task state and metrics
     LogUtils::info(" LEFT  [TASK] State: %s | Duration: %d s | Distance: %d m | AreaDone: %.2f daa | LiquidUsed: %.2f L\n",
            left.getTaskStateName(),
-           left.getApplicationDuration(),
-           left.getDistanceTaken(),
-           left.getAreaCompleted(),
-           left.getLiquidConsumed()
+           leftMetrics.getDuration(),
+           leftMetrics.getDistance(),
+           leftMetrics.getArea(),
+           leftMetrics.getConsumption()
     );
 
     LogUtils::info(" RIGHT [TASK] State: %s | Duration: %d s | Distance: %d m | AreaDone: %.2f daa | LiquidUsed: %.2f L\n",
            right.getTaskStateName(),
-           right.getApplicationDuration(),
-           right.getDistanceTaken(),
-           right.getAreaCompleted(),
-           right.getLiquidConsumed()
+           rightMetrics.getDuration(),
+           rightMetrics.getDistance(),
+           rightMetrics.getArea(),
+           rightMetrics.getConsumption()
     );
 
     // Error flags
@@ -117,7 +119,7 @@ void DebugInfoPrinter::printSystemInfo(SystemContext& context) {
     const SystemParams& params = context.getPrefs().getParams();
 
     LogUtils::info("[SYSTEM info] TankLevel: %.2f | ClientInWorkZone: %s | MinWorkingSpeed: %.2f km/h | SimSpeed: %.2f km/h | BoomWidth Left: %.2f m | BoomWidth Right: %.2f m\n",
-           DispenserChannel::getTankLevel(),
+           ApplicationMetrics::getTankLevel(),
            DispenserChannel::isClientInWorkZone() ? "YES" : "NO",
            params.minWorkingSpeed,
            params.simSpeed,

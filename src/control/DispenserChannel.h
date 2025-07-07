@@ -16,6 +16,7 @@
 #include "io/IOConfig.h"
 #include "io/ADS1115.h"
 #include "core/SystemPreferences.h"
+#include "control/ApplicationMetrics.h"
 
 class SystemContext; // Forward declaration
 
@@ -56,15 +57,13 @@ public:
     DispenserChannel(DispenserChannel&&) = delete;
     DispenserChannel& operator=(DispenserChannel&&) = delete;
 
+    ApplicationMetrics& getMetrics() { return metrics; }
+    const ApplicationMetrics& getMetrics() const { return metrics; }
+
     void init(String name, SystemContext* ctx, const VNH7070ASPins& motorPins);
-    void printMotorCurrent(void);
-    void testMotorRamp(void);
 
     // Setters
     bool setTaskState(UserTaskState state);
-    inline void setPIKp(float Kp) { piController.setPIKp(Kp); }
-    inline void setPIKi(float Ki) { piController.setPIKi(Ki); }
-    inline void setPIParams(float Kp, float Ki) { piController.setPIKp(Kp); piController.setPIKi(Ki); }
     inline void setBoomWidth(float val) { boomWidth = val; }
     inline void setTargetFlowRatePerDaa(float val) { targetFlowRatePerDaa = val; }
     inline void setTargetFlowRatePerMin(float val) { targetFlowRatePerMin = val; }
@@ -82,8 +81,6 @@ public:
     inline const VNH7070AS& getMotor() const { return motorDriver; }
     inline PIController& getPIController() { return piController; }
     inline const PIController& getPIController() const { return piController; }
-    inline float getPIKp() const { return piController.getPIKp(); }
-    inline float getPIKi() const { return piController.getPIKi(); }
     inline float getTargetFlowRatePerDaa() const { return targetFlowRatePerDaa; }
     inline float getTargetFlowRatePerMin() const { return targetFlowRatePerMin; }
     inline float getRealFlowRatePerDaa() const { return realFlowRatePerDaa; }
@@ -112,26 +109,10 @@ public:
     void applyPIControl(float target, float measured);
     void reportErrorFlags(void);
 
-    // Task metrics per channel
-    inline void incrementApplicationDuration() { applicationDuration++; }
-    inline void increaseDistanceTaken(int length) { distanceTaken += length; }
-    inline void increaseAreaProcessed(float value) { areaCompleted += value; }
-    inline void increaseLiquidConsumed(float value) { liquidConsumed += value; }
-    
-    inline void clearApplicationDuration() { applicationDuration = 0; }
-    inline void clearDistanceTaken() { distanceTaken = 0; }
-    inline void clearAreaCompleted() { areaCompleted = 0.0f; }
-    inline void clearLiquidConsumed() { liquidConsumed = 0.0f; }
-    
-    inline int getApplicationDuration() const { return applicationDuration; }
-    inline int getDistanceTaken() const { return distanceTaken; }
-    inline float getAreaCompleted() const { return areaCompleted; }
-    inline float getLiquidConsumed() const { return liquidConsumed; }
-    
-    inline static float getTankLevel() { return tankLevel; }
-    inline void decreaseTankLevel(float value) { tankLevel -= value; }
+    void printMotorCurrent(void);
+    void testMotorRamp(void);
+
     inline static bool isClientInWorkZone() { return clientInWorkZone; }
-    inline static void setTankLevel(float level) { tankLevel = level; }
     inline static void setClientInWorkZone(bool inWorkZone) { clientInWorkZone = inWorkZone; }
 
     float getCurrentPositionPercent() const;
@@ -146,6 +127,7 @@ private:
 
     PIController piController;
     VNH7070AS motorDriver;
+    ApplicationMetrics metrics;
 
     float targetFlowRatePerDaa = 0.0f;
     float targetFlowRatePerMin = 0.0f;
@@ -158,12 +140,6 @@ private:
     UserTaskState taskState = UserTaskState::Stopped;
     uint32_t errorFlags = NO_ERROR;
 
-    int applicationDuration = 0;
-    int distanceTaken = 0;
-    float areaCompleted = 0.0f;
-    float liquidConsumed = 0.0f;
-
-    static float tankLevel; // in liters, used for area calculations
     static bool clientInWorkZone;
 
     float boomWidth = 0.0f; // in meters, used for area calculations
