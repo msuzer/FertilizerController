@@ -40,7 +40,7 @@ void SystemContext::init() {
 
     ads1115.setGain(ADS1115::Gain::FSR_4_096V); // Optional: Set gain
 
-    prefs.init(*this);
+    SystemPreferences::init(*this);
     leftChannel.init("Left", this, leftChannelPins);
     rightChannel.init("Right", this, rightChannelPins);
 
@@ -82,7 +82,6 @@ String SystemContext::readDS18B20ID() {
 }
 
 float SystemContext::getGroundSpeed(bool useSim) const {
-  const SystemParams& params = prefs.getParams();
     if (params.speedSource == "GPS") {
         return gpsProvider.getSpeed();
     }

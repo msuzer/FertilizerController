@@ -27,6 +27,14 @@
 #include "io/ADS1115.h"
 #include "io/DS18B20Sensor.h"
 
+struct SystemParams {
+    String speedSource;
+    float simSpeed;
+    float minWorkingSpeed;
+    int autoRefreshPeriod;
+    int heartBeatPeriod;
+};
+
 class SystemContext {
 public:
     static SystemContext& instance();  // Singleton accessor
@@ -34,7 +42,7 @@ public:
     void init();  // Initialize all services
 
     // Non-Const Accessors for services
-    inline SystemPreferences& getPrefs() { return prefs; }
+    inline SystemParams& getParams() { return params; }
     inline BLETextServer& getBLETextServer() { return bleTextServer; }
     inline BLECommandParser& getBLECommandParser() { return bleCommandParser; }
     inline CommandHandler& getCommandHandler() { return commandHandler; }
@@ -46,7 +54,7 @@ public:
     inline DispenserChannel& getRightChannel() { return rightChannel; }
     
     // Const accessors for services
-    inline const SystemPreferences& getPrefs() const { return prefs; }
+    const SystemParams& getParams() const { return params; }
     inline const BLETextServer& getBLETextServer() const { return bleTextServer; }
     inline const BLECommandParser& getBLECommandParser() const { return bleCommandParser; }
     inline const CommandHandler& getCommandHandler() const { return commandHandler; }
@@ -56,6 +64,8 @@ public:
     inline const DS18B20Sensor& getTempSensor() const { return tempSensor; }
     inline const DispenserChannel& getLeftChannel() const { return leftChannel; }
     inline const DispenserChannel& getRightChannel() const { return rightChannel; }
+
+    void setParams(const SystemParams& p) { params = p; }
 
     void writeRGBLEDs(uint8_t chR, uint8_t chG, uint8_t chB);
     float getGroundSpeed(bool useSim = false) const;
@@ -79,7 +89,7 @@ private:
     static constexpr uint8_t ADS1115_I2C_ADDRESS = 0x48;
 
     // Services
-    SystemPreferences prefs;
+    SystemParams params;
     BLETextServer bleTextServer;
     BLECommandParser bleCommandParser;
     CommandHandler commandHandler;

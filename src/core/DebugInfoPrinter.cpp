@@ -55,8 +55,8 @@ String DebugInfoPrinter::formatErrorFlags(uint32_t errorFlags) {
 void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
     const DispenserChannel& left = context.getLeftChannel();
     const DispenserChannel& right = context.getRightChannel();
-    const ApplicationMetrics& leftMetrics = left.getMetrics();
-    const ApplicationMetrics& rightMetrics = right.getMetrics();
+    const ApplicationMetrics& leftMetrics = left.getTaskController().getMetrics();
+    const ApplicationMetrics& rightMetrics = right.getTaskController().getMetrics();
 
     // Main PI control debug line
     LogUtils::info("[LOG] Time: %lu\n", millis());
@@ -98,8 +98,8 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
            rightMetrics.getConsumption()
     );
 
-    const ErrorManager& leftErrorManager = left.getErrorManager();
-    const ErrorManager& rightErrorManager = right.getErrorManager();
+    const ErrorManager& leftErrorManager = left.getTaskController().getErrorManager();
+    const ErrorManager& rightErrorManager = right.getTaskController().getErrorManager();
 
     // Error flags
     String leftErrorStr = formatErrorFlags(leftErrorManager.getErrorFlags());
@@ -114,12 +114,12 @@ void DebugInfoPrinter::printErrorSummary(SystemContext& context) {
     const DispenserChannel& right = context.getRightChannel();
 
     LogUtils::info("[ERROR SUMMARY] LEFT: %s | RIGHT: %s\n",
-           formatErrorFlags(left.getErrorManager().getErrorFlags()).c_str(),
-           formatErrorFlags(right.getErrorManager().getErrorFlags()).c_str());
+           formatErrorFlags(left.getTaskController().getErrorManager().getErrorFlags()).c_str(),
+           formatErrorFlags(right.getTaskController().getErrorManager().getErrorFlags()).c_str());
 }
 
 void DebugInfoPrinter::printSystemInfo(SystemContext& context) {
-    const SystemParams& params = context.getPrefs().getParams();
+    const SystemParams& params = context.getParams();
 
     LogUtils::info("[SYSTEM info] TankLevel: %.2f | ClientInWorkZone: %s | MinWorkingSpeed: %.2f km/h | SimSpeed: %.2f km/h | BoomWidth Left: %.2f m | BoomWidth Right: %.2f m\n",
            ApplicationMetrics::getTankLevel(),
@@ -228,7 +228,7 @@ void DebugInfoPrinter::printResetReason(const char* cpuLabel, int reason) {
 }
 
 void DebugInfoPrinter::printMotorDiagnostics(float pos1, float pos2, float current1, float current2) {
-    LogUtils::info("[MOTORS] Pot1: %.2fV | Pot2: %.2fV | Curr1: %.2fA | Curr2: %.2fA\n",
+    LogUtils::info("[MOTORS] Pos1: %.2fV | Pos2: %.2fV | Curr1: %.2fA | Curr2: %.2fA\n",
            pos1, pos2, current1, current2);
 }
 
@@ -252,8 +252,8 @@ void DebugInfoPrinter::printDeviceIdentifiers(SystemContext &context) {
 }
 
 void DebugInfoPrinter::printVersionInfo() {
-    LogUtils::info("[VERSION] Firmware: %s | Device: %s | Build: %s %s\n",
-           FIRMWARE_VERSION, DEVICE_VERSION, BUILD_DATE, BUILD_TIME);
+    LogUtils::info("[VERSION] %s v.%s | Board: %s | Build: %s %s\n",
+           FIRMWARE_NAME, FIRMWARE_VERSION, DEVICE_VERSION, BUILD_DATE, BUILD_TIME);
 }
 
 void DebugInfoPrinter::printAppInfo() {

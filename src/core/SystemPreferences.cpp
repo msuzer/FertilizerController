@@ -51,6 +51,8 @@ void SystemPreferences::init(SystemContext& ctx) {
     }
     LogUtils::setLogLevel(static_cast<LogLevel>(logLevel));
 
+    SystemParams& params = ctx.getParams();
+
     params.speedSource = prefs.getString(keyNames[KEY_SPEED_SRC], DEFAULT_SPEED_SOURCE);
     params.simSpeed = prefs.getFloat(keyNames[KEY_SIM_SPEED], DEFAULT_SIM_SPEED);
     params.minWorkingSpeed = prefs.getFloat(keyNames[KEY_MIN_SPEED], DEFAULT_MIN_WORKING_SPEED);

@@ -68,7 +68,7 @@ static void taskLoopUpdateCallback(void *p) {
   right.reportErrorFlags();
 
   // Auto-refresh
-  int arPeriod = context.getPrefs().getParams().autoRefreshPeriod;
+  int arPeriod = context.getParams().autoRefreshPeriod;
   if ((arPeriod > 0) && (++counterRefresh >= arPeriod)) {
     counterRefresh = 0;
     timeToRefresh = true;
@@ -195,13 +195,13 @@ void loop() {
   
     if (leftMotor.checkStuck(current1)) {
         LogUtils::warn("[MOTOR] Left Motor STUCK!\n");
-        context.getLeftChannel().getErrorManager().setError(MOTOR_STUCK);
+        context.getLeftChannel().getTaskController().getErrorManager().setError(MOTOR_STUCK);
         context.getLeftChannel().getTaskController().setTaskState(UserTaskState::Paused);
     }
 
     if (rightMotor.checkStuck(current2)) {
         LogUtils::warn("[MOTOR] Right Motor STUCK!\n");
-        context.getRightChannel().getErrorManager().setError(MOTOR_STUCK);
+        context.getRightChannel().getTaskController().getErrorManager().setError(MOTOR_STUCK);
         context.getRightChannel().getTaskController().setTaskState(UserTaskState::Paused);
     }
   }

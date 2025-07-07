@@ -26,18 +26,18 @@ void DispenserChannel::init(String name, SystemContext* ctx, const VNH7070ASPins
   context = ctx;
   channelName = name;
   channelIndex = 0;
-  adcChannel = ADS1115Channels::CH0;  
+  _adcChannel = ADS1115Channels::CH0;  
 
   if (name == "Right") {
     channelIndex = 1;
-    adcChannel = ADS1115Channels::CH1;
+    _adcChannel = ADS1115Channels::CH1;
   }
 
   motorDriver.init(motorPins, channelIndex);
 }
 
 void DispenserChannel::checkLowSpeedState() {
-    SystemParams & params = context->getPrefs().getParams();
+    SystemParams & params = context->getParams();
     if (getTargetFlowRatePerDaa() > 0.0f) {
         if (context->getGroundSpeed() < params.minWorkingSpeed) {
             if (params.minWorkingSpeed > 0) {
@@ -63,8 +63,8 @@ void DispenserChannel::checkLowSpeedState() {
 void DispenserChannel::reportErrorFlags(void) {
   static int oldErrorFlags = NO_ERROR;
   static int counter = 0;
-  int heartBeatPeriod = context->getPrefs().getParams().heartBeatPeriod;
-  uint32_t errorFlags = errorManager.getErrorFlags();
+  int heartBeatPeriod = context->getParams().heartBeatPeriod;
+  uint32_t errorFlags = taskStateController.getErrorManager().getErrorFlags();
 
   // error is reported periodically and instantly if it is only NO_ERROR
   bool reportInstantly = (oldErrorFlags != errorFlags) && (errorFlags == NO_ERROR);
@@ -81,16 +81,18 @@ void DispenserChannel::updateApplicationMetrics() {
     return;  // Don't update metrics if not active
   }
 
-  SystemParams & params = context->getPrefs().getParams();
+  ApplicationMetrics & metrics = taskStateController.getMetrics();
+  ErrorManager & errorManager = taskStateController.getErrorManager();
+
+  SystemParams & params = context->getParams();
   float groundSpeedKMPH = context->getGroundSpeed();
   float groundSpeedMPS = context->getGroundSpeed(true);
 
-  int satCount = context->getGPSProvider().getSatelliteCount();
   float flowRatePerMin = getRealFlowRatePerMin();
   bool isBoomWidthOK = (getBoomWidth() > 0);
   bool isSpeedOK = (groundSpeedKMPH >= params.minWorkingSpeed);
   bool isFlowOK = (flowRatePerMin > 0);
-  const float deltaTime = 1.0f;
+  const float deltaTime = 1.0f; // This method is called every second
 
   if (isSpeedOK && isBoomWidthOK) {
     if (isFlowOK) {
@@ -135,6 +137,7 @@ void DispenserChannel::updateApplicationMetrics() {
   }
 
   // GPS satellite check (same for both)
+  int satCount = context->getGPSProvider().getSatelliteCount();
   if (satCount < GPSProvider::MIN_SATELLITES_NEEDED) {
     errorManager.setError(NO_SATELLITE_CONNECTED);
   } else {
@@ -157,7 +160,7 @@ float DispenserChannel::getTargetPositionForRate(float desiredKgPerDaa) const {
     return constrain(desiredPositionPercent, 0.0f, 100.0f);
 }
 
-float DispenserChannel::getCurrentPositionPercent() const {
+float DispenserChannel::getCurrentPositionPercent(ADS1115Channels adcChannel) const {
     float voltage = context->getADS1115().readFilteredVoltage(adcChannel);
     voltage = constrain(voltage, MIN_POT_VOLTAGE, MAX_POT_VOLTAGE);
     
@@ -170,7 +173,7 @@ float DispenserChannel::getCurrentPositionPercent() const {
   The voltage is mapped to a percentage of the full range (0-100%).
 */
 void DispenserChannel::applyPIControl() {
-  float measured = getCurrentPositionPercent();
+  float measured = getCurrentPositionPercent(_adcChannel);
   float target = getTargetPositionForRate(targetFlowRatePerDaa);
 
   if (taskStateController.isTaskPassive()) {
@@ -204,8 +207,8 @@ void DispenserChannel::printMotorCurrent(void) {
   ads1115.pushBuffer(); // Push all channels to the buffer
   
   // --- Compute averages and convert to voltage ---
-  float pos1 = ads1115.readFilteredVoltage(ADS1115Channels::CH0);
-  float pos2 = ads1115.readFilteredVoltage(ADS1115Channels::CH1);
+  float pos1 = getCurrentPositionPercent(ADS1115Channels::CH0);
+  float pos2 = getCurrentPositionPercent(ADS1115Channels::CH1);
   float current1 = ads1115.readFilteredCurrent(ADS1115Channels::CH2);
   float current2 = ads1115.readFilteredCurrent(ADS1115Channels::CH3);
 

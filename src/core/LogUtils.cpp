@@ -60,6 +60,23 @@ void LogUtils::die(const char* format, ...) {
     }
 }
 
+void LogUtils::error(const char* format, ...) {
+    printf("[ERROR] ");
+
+    va_list args;
+    va_start(args, format);
+    vprintf(format, args);
+    va_end(args);
+
+    SystemContext& ctx = SystemContext::instance();
+    while (1) {
+        ctx.writeRGBLEDs(HIGH, LOW, LOW);
+        delay(100);
+        ctx.writeRGBLEDs(LOW, LOW, LOW);
+        delay(1000);
+    }
+}
+
 void LogUtils::warn(const char* format, ...) {
     if (currentLogLevel < LogLevel::Warn)
         return;

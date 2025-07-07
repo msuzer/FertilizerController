@@ -1,5 +1,6 @@
 #include "TaskStateController.h"
 #include "core/LogUtils.h"  // If logging is used
+#include "core/SystemPreferences.h"
 
 bool TaskStateController::setTaskState(UserTaskState newState) {
     bool validOp = false;
@@ -23,7 +24,12 @@ bool TaskStateController::setTaskState(UserTaskState newState) {
     }
 
     if (validOp) {
-        taskState = newState;
+        if (taskState == UserTaskState::Stopped && newState == UserTaskState::Started) {
+            errorManager.clearAllErrors();
+            metrics.reset();
+            float ftemp = SystemPreferences::getFloat(PrefKey::KEY_TANK_LEVEL, DEFAULT_TANK_INITIAL_LEVEL);
+            ApplicationMetrics::setTankLevel(ftemp);
+        }
 
         if (taskState == UserTaskState::Stopped || taskState == UserTaskState::Paused) {
             const uint32_t ERRORS_TO_CLEAR =
@@ -42,6 +48,7 @@ bool TaskStateController::setTaskState(UserTaskState newState) {
             LogUtils::info("[STATE] Cleared relevant error flags due to task state transition to %s\n", getTaskStateName());
             LogUtils::warn("[MOTOR] Aligning Motor To End\n");
         }
+        taskState = newState;
 
         return true;
     }

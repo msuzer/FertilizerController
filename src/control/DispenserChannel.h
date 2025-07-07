@@ -32,29 +32,24 @@ public:
     DispenserChannel(DispenserChannel&&) = delete;
     DispenserChannel& operator=(DispenserChannel&&) = delete;
 
-    ApplicationMetrics& getMetrics() { return metrics; }
-    const ApplicationMetrics& getMetrics() const { return metrics; }
     TaskStateController& getTaskController() { return taskStateController; }
     const TaskStateController& getTaskController() const { return taskStateController; }
-    ErrorManager& getErrorManager() { return errorManager; }
-    const ErrorManager& getErrorManager() const { return errorManager; }
+    VNH7070AS& getMotor() { return motorDriver; }
+    const VNH7070AS& getMotor() const { return motorDriver; }
+    PIController& getPIController() { return piController; }
+    const PIController& getPIController() const { return piController; }
 
     void init(String name, SystemContext* ctx, const VNH7070ASPins& motorPins);
 
     // Setters
-    bool setTaskState(UserTaskState state);
-    inline void setBoomWidth(float val) { boomWidth = val; }
     inline void setTargetFlowRatePerDaa(float val) { targetFlowRatePerDaa = val; }
     inline void setTargetFlowRatePerMin(float val) { targetFlowRatePerMin = val; }
     inline void setRealFlowRatePerDaa(float val) { realFlowRatePerDaa = val; }
     inline void setRealFlowRatePerMin(float val) { realFlowRatePerMin = val; }
     inline void setFlowCoeff(float val) { flowCoeff = val; }
+    inline void setBoomWidth(float val) { boomWidth = val; }
 
     // Getters
-    inline VNH7070AS& getMotor() { return motorDriver; }
-    inline const VNH7070AS& getMotor() const { return motorDriver; }
-    inline PIController& getPIController() { return piController; }
-    inline const PIController& getPIController() const { return piController; }
     inline float getTargetFlowRatePerDaa() const { return targetFlowRatePerDaa; }
     inline float getTargetFlowRatePerMin() const { return targetFlowRatePerMin; }
     inline float getRealFlowRatePerDaa() const { return realFlowRatePerDaa; }
@@ -62,48 +57,42 @@ public:
     inline float getFlowCoeff() const { return flowCoeff; }
     inline float getBoomWidth() const { return boomWidth; }
 
+    // Helper methods
     void checkLowSpeedState();
     void updateApplicationMetrics();
     float getProcessedAreaPerSec() const;
+    float getCurrentPositionPercent(ADS1115Channels adcChannel) const;
+    float getTargetPositionForRate(float desiredKgPerDaa) const;
+    void reportErrorFlags(void);
     void applyPIControl();
     void applyPIControl(float target, float measured);
-    void reportErrorFlags(void);
-
     void printMotorCurrent(void);
     void testMotorRamp(void);
 
-    inline static bool isClientInWorkZone() { return clientInWorkZone; }
-    inline static void setClientInWorkZone(bool inWorkZone) { clientInWorkZone = inWorkZone; }
-
-    float getCurrentPositionPercent() const;
-    float getTargetPositionForRate(float desiredKgPerDaa) const;
+    static bool isClientInWorkZone() { return clientInWorkZone; }
+    static void setClientInWorkZone(bool inWorkZone) { clientInWorkZone = inWorkZone; }
 private:
     DispenserChannel(String name = "") : channelName(name) { }
-
-    String channelName;
-    uint8_t channelIndex = 0;  // CH0 for left, CH1 for right
-    ADS1115Channels adcChannel = ADS1115Channels::CH0; // Default to CH0
     static SystemContext* context;
 
     PIController piController;
     VNH7070AS motorDriver;
-    ApplicationMetrics metrics;
-    ErrorManager errorManager;
     TaskStateController taskStateController;
+
+    String channelName;
+    uint8_t channelIndex = 0;  // CH0 for left, CH1 for right
+    ADS1115Channels _adcChannel = ADS1115Channels::CH0; // Default to CH0
 
     float targetFlowRatePerDaa = 0.0f;
     float targetFlowRatePerMin = 0.0f;
     float realFlowRatePerDaa = 0.0f;
     float realFlowRatePerMin = 0.0f;
     float flowCoeff = 1.0f;
+    float boomWidth = 0.0f; // in meters, used for area calculations
 
     int counter = 0;
     bool lowSpeedFlag = false;
-
-    static bool clientInWorkZone;
-
-    float boomWidth = 0.0f; // in meters, used for area calculations
-
     int testTick = 0;
     bool testDirection = true;  // true = forward, false = backward
+    static bool clientInWorkZone;
 };

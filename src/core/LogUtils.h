@@ -13,6 +13,7 @@
 
 enum class LogLevel {
     Silent = 0,
+    Fatal,
     Error,
     Warn,
     Info,
@@ -26,6 +27,7 @@ public:
     static const char* logLevelToString(LogLevel level);
 
     static void die(const char* format, ...);
+    static void error(const char* format, ...);
     static void warn(const char* format, ...);
     static void info(const char* format, ...);
     static void verbose(const char* format, ...);

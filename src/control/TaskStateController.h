@@ -2,9 +2,10 @@
 
 #include <cstdint>
 #include "control/ErrorManager.h"
+#include "control/ApplicationMetrics.h"
 
 enum class UserTaskState {
-    Stopped,
+    Stopped = 0,
     Started,
     Paused,
     Resuming,
@@ -15,6 +16,7 @@ class TaskStateController {
 private:
     UserTaskState taskState = UserTaskState::Stopped;
     ErrorManager errorManager;
+    ApplicationMetrics metrics;
 
 public:
     // Query helpers
@@ -48,4 +50,7 @@ public:
 
     ErrorManager& getErrorManager() { return errorManager; }
     const ErrorManager& getErrorManager() const { return errorManager; }
+    ApplicationMetrics& getMetrics() { return metrics; }
+    const ApplicationMetrics& getMetrics() const { return metrics; }
+
 };

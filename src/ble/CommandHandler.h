@@ -11,6 +11,7 @@
 
 #include "BLECommandParser.h"
 #include <Arduino.h>
+#include "control/TaskStateController.h"
 
 class SystemContext; // Forward declaration
 
@@ -36,10 +37,7 @@ public:
     static void handlerGetTaskInfo(const ParsedInstruction& instr);
     static void handlerGetVersionInfo(const ParsedInstruction& instr);
 
-    static void handlerStartNewTask(const ParsedInstruction& instr);
-    static void handlerPauseTask(const ParsedInstruction& instr);
-    static void handlerResumeTask(const ParsedInstruction& instr);
-    static void handlerEndTask(const ParsedInstruction& instr);
+    static void handlerSetTaskState(const ParsedInstruction& instr);
     static void handlerSetInWorkZone(const ParsedInstruction& instr);
 
     static void handlerSetTargetFlowRatePerDaa(const ParsedInstruction& instr);
