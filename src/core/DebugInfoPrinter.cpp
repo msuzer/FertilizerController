@@ -83,7 +83,7 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
 
     // Task state and metrics
     LogUtils::info(" LEFT  [TASK] State: %s | Duration: %d s | Distance: %d m | AreaDone: %.2f daa | LiquidUsed: %.2f L\n",
-           left.getTaskStateName(),
+           left.getTaskController().getTaskStateName(),
            leftMetrics.getDuration(),
            leftMetrics.getDistance(),
            leftMetrics.getArea(),
@@ -91,19 +91,22 @@ void DebugInfoPrinter::printRealTimeData(SystemContext& context) {
     );
 
     LogUtils::info(" RIGHT [TASK] State: %s | Duration: %d s | Distance: %d m | AreaDone: %.2f daa | LiquidUsed: %.2f L\n",
-           right.getTaskStateName(),
+           right.getTaskController().getTaskStateName(),
            rightMetrics.getDuration(),
            rightMetrics.getDistance(),
            rightMetrics.getArea(),
            rightMetrics.getConsumption()
     );
 
-    // Error flags
-    String leftErrorStr = formatErrorFlags(left.getErrorFlags());
-    String rightErrorStr = formatErrorFlags(right.getErrorFlags());
+    const ErrorManager& leftErrorManager = left.getErrorManager();
+    const ErrorManager& rightErrorManager = right.getErrorManager();
 
-    LogUtils::info(" LEFT  [ERROR] Flags: %08X %s\n", left.getErrorFlags(), leftErrorStr.c_str());
-    LogUtils::info(" RIGHT [ERROR] Flags: %08X %s\n", right.getErrorFlags(), rightErrorStr.c_str());
+    // Error flags
+    String leftErrorStr = formatErrorFlags(leftErrorManager.getErrorFlags());
+    String rightErrorStr = formatErrorFlags(rightErrorManager.getErrorFlags());
+
+    LogUtils::info(" LEFT  [ERROR] Flags: %08X %s\n", leftErrorManager.getErrorFlags(), leftErrorStr.c_str());
+    LogUtils::info(" RIGHT [ERROR] Flags: %08X %s\n", rightErrorManager.getErrorFlags(), rightErrorStr.c_str());
 }
 
 void DebugInfoPrinter::printErrorSummary(SystemContext& context) {
@@ -111,8 +114,8 @@ void DebugInfoPrinter::printErrorSummary(SystemContext& context) {
     const DispenserChannel& right = context.getRightChannel();
 
     LogUtils::info("[ERROR SUMMARY] LEFT: %s | RIGHT: %s\n",
-           formatErrorFlags(left.getErrorFlags()).c_str(),
-           formatErrorFlags(right.getErrorFlags()).c_str());
+           formatErrorFlags(left.getErrorManager().getErrorFlags()).c_str(),
+           formatErrorFlags(right.getErrorManager().getErrorFlags()).c_str());
 }
 
 void DebugInfoPrinter::printSystemInfo(SystemContext& context) {

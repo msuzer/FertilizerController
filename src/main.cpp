@@ -61,8 +61,8 @@ static void taskLoopUpdateCallback(void *p) {
   left.checkLowSpeedState();
   right.checkLowSpeedState();
 
-  left.updateTaskMetrics();
-  right.updateTaskMetrics();
+  left.updateApplicationMetrics();
+  right.updateApplicationMetrics();
 
   left.reportErrorFlags();
   right.reportErrorFlags();
@@ -195,14 +195,14 @@ void loop() {
   
     if (leftMotor.checkStuck(current1)) {
         LogUtils::warn("[MOTOR] Left Motor STUCK!\n");
-        context.getLeftChannel().setError(MOTOR_STUCK);
-        context.getLeftChannel().setTaskState(UserTaskState::Paused);
+        context.getLeftChannel().getErrorManager().setError(MOTOR_STUCK);
+        context.getLeftChannel().getTaskController().setTaskState(UserTaskState::Paused);
     }
 
     if (rightMotor.checkStuck(current2)) {
         LogUtils::warn("[MOTOR] Right Motor STUCK!\n");
-        context.getRightChannel().setError(MOTOR_STUCK);
-        context.getRightChannel().setTaskState(UserTaskState::Paused);
+        context.getRightChannel().getErrorManager().setError(MOTOR_STUCK);
+        context.getRightChannel().getTaskController().setTaskState(UserTaskState::Paused);
     }
   }
 

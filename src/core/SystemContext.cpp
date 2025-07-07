@@ -45,8 +45,8 @@ void SystemContext::init() {
     rightChannel.init("Right", this, rightChannelPins);
 
     // Force both channels to STOPPED
-    getLeftChannel().setTaskState(UserTaskState::Stopped);
-    getRightChannel().setTaskState(UserTaskState::Stopped);
+    getLeftChannel().getTaskController().setTaskState(UserTaskState::Stopped);
+    getRightChannel().getTaskController().setTaskState(UserTaskState::Stopped);
 
     LogUtils::warn("[TASK INIT] Forced task state to STOPPED on boot.\n");
 

@@ -17,37 +17,12 @@
 #include "io/ADS1115.h"
 #include "core/SystemPreferences.h"
 #include "control/ApplicationMetrics.h"
+#include "control/TaskStateController.h"
 
 class SystemContext; // Forward declaration
 
-constexpr float FLOW_ERROR_WARNING_THRESHOLD = 2.0f;
 constexpr float MIN_POT_VOLTAGE = 0.00f; // Minimum voltage for potentiometer
 constexpr float MAX_POT_VOLTAGE = 3.30f; // Maximum voltage for potentiometer
-
-enum UserErrorCodes {
-    NO_ERROR = 0,
-    LIQUID_TANK_EMPTY = 1 << 0,
-    INSUFFICIENT_FLOW = 1 << 1,
-    FLOW_NOT_SETTLED = 1 << 2,
-    MOTOR_STUCK = 1 << 3,
-    DUMMY_ERROR = 1 << 4,
-    BATTERY_LOW = 1 << 5,
-    NO_SATELLITE_CONNECTED = 1 << 6,
-    INVALID_SATELLITE_INFO = 1 << 7,
-    INVALID_GPS_LOCATION = 1 << 8,
-    INVALID_GPS_SPEED = 1 << 9,
-    INVALID_PARAM_COUNT = 1 << 10,
-    MESSAGE_PARSE_ERROR = 1 << 11,
-    HARDWARE_ERROR = 1 << 12
-};
-
-enum class UserTaskState {
-    Stopped,
-    Started,
-    Paused,
-    Resuming,
-    Testing
-};
 
 class DispenserChannel {
     friend class SystemContext; // Allow SystemContext to access private members
@@ -59,6 +34,10 @@ public:
 
     ApplicationMetrics& getMetrics() { return metrics; }
     const ApplicationMetrics& getMetrics() const { return metrics; }
+    TaskStateController& getTaskController() { return taskStateController; }
+    const TaskStateController& getTaskController() const { return taskStateController; }
+    ErrorManager& getErrorManager() { return errorManager; }
+    const ErrorManager& getErrorManager() const { return errorManager; }
 
     void init(String name, SystemContext* ctx, const VNH7070ASPins& motorPins);
 
@@ -71,11 +50,6 @@ public:
     inline void setRealFlowRatePerMin(float val) { realFlowRatePerMin = val; }
     inline void setFlowCoeff(float val) { flowCoeff = val; }
 
-    inline void setErrorFlags(uint32_t flags) { errorFlags = flags; }
-    inline void setError(uint32_t mask) { errorFlags |= mask; }
-    inline void clearError(uint32_t mask) { errorFlags &= ~mask; }
-    inline void clearAllErrors() { errorFlags = 0; }
-
     // Getters
     inline VNH7070AS& getMotor() { return motorDriver; }
     inline const VNH7070AS& getMotor() const { return motorDriver; }
@@ -87,23 +61,9 @@ public:
     inline float getRealFlowRatePerMin() const { return realFlowRatePerMin; }
     inline float getFlowCoeff() const { return flowCoeff; }
     inline float getBoomWidth() const { return boomWidth; }
-    inline UserTaskState getTaskState() const { return taskState; }
-    inline uint32_t getErrorFlags() const { return errorFlags; }
-
-    inline bool hasError(uint32_t mask) const { return (errorFlags & mask) != 0; }
-    inline bool hasAnyError() const { return errorFlags != 0; }
-
-    // Current task state
-    inline bool isTaskStarted() const { return taskState == UserTaskState::Started; }
-    inline bool isTaskPaused() const { return taskState == UserTaskState::Paused; }
-    inline bool isTaskStopped() const { return taskState == UserTaskState::Stopped; }
-    inline bool isTaskResuming() const { return taskState == UserTaskState::Resuming; }
-    inline bool isTaskActive() const { return taskState == UserTaskState::Started || taskState == UserTaskState::Resuming; }
-    const char* getTaskStateName() const;
-    const char* taskStateToString(UserTaskState state) const;
 
     void checkLowSpeedState();
-    void updateTaskMetrics();
+    void updateApplicationMetrics();
     float getProcessedAreaPerSec() const;
     void applyPIControl();
     void applyPIControl(float target, float measured);
@@ -128,6 +88,8 @@ private:
     PIController piController;
     VNH7070AS motorDriver;
     ApplicationMetrics metrics;
+    ErrorManager errorManager;
+    TaskStateController taskStateController;
 
     float targetFlowRatePerDaa = 0.0f;
     float targetFlowRatePerMin = 0.0f;
@@ -137,8 +99,6 @@ private:
 
     int counter = 0;
     bool lowSpeedFlag = false;
-    UserTaskState taskState = UserTaskState::Stopped;
-    uint32_t errorFlags = NO_ERROR;
 
     static bool clientInWorkZone;
 

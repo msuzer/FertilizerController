@@ -186,28 +186,39 @@ void CommandHandler::handlerReportPIParams(const ParsedInstruction& instr) {
 void CommandHandler::handlerStartNewTask(const ParsedInstruction& instr) {
     float ftemp = context->getPrefs().getFloat(PrefKey::KEY_TANK_LEVEL, DEFAULT_TANK_INITIAL_LEVEL);
     ApplicationMetrics::setTankLevel(ftemp);
-    ApplicationMetrics &metrics = context->getLeftChannel().getMetrics();
+    DispenserChannel & leftChannel = context->getLeftChannel();
+    DispenserChannel & rightChannel = context->getRightChannel();
+    ApplicationMetrics &leftMetrics = leftChannel.getMetrics();
+    ApplicationMetrics &rightMetrics = rightChannel.getMetrics();
+    TaskStateController &leftController = leftChannel.getTaskController();
+    TaskStateController &rightController = rightChannel.getTaskController();
+    ErrorManager& leftErrors = leftChannel.getTaskController().getErrorManager();
+    ErrorManager& rightErrors = rightChannel.getTaskController().getErrorManager();
 
     // TODO : consider resetting right channel metrics as well
-    metrics.clearDuration();
-    metrics.clearConsumption();
-    metrics.clearArea();
-    metrics.clearDistance();
+    leftMetrics.reset();
+    rightMetrics.reset();
 
-    context->getLeftChannel().clearAllErrors();
-    context->getLeftChannel().setTaskState(UserTaskState::Started);
+    leftErrors.clearAllErrors();
+    rightErrors.clearAllErrors();
+
+    leftController.setTaskState(UserTaskState::Started);
+    rightController.setTaskState(UserTaskState::Started);
 }
 
 void CommandHandler::handlerPauseTask(const ParsedInstruction& instr) {
-    context->getLeftChannel().setTaskState(UserTaskState::Paused);
+    context->getLeftChannel().getTaskController().setTaskState(UserTaskState::Paused);
+    context->getRightChannel().getTaskController().setTaskState(UserTaskState::Paused);
 }
 
 void CommandHandler::handlerResumeTask(const ParsedInstruction& instr) {
-    context->getLeftChannel().setTaskState(UserTaskState::Resuming);
+    context->getLeftChannel().getTaskController().setTaskState(UserTaskState::Resuming);
+    context->getRightChannel().getTaskController().setTaskState(UserTaskState::Resuming);
 }
 
 void CommandHandler::handlerEndTask(const ParsedInstruction& instr) {
-    context->getLeftChannel().setTaskState(UserTaskState::Stopped);
+    context->getLeftChannel().getTaskController().setTaskState(UserTaskState::Stopped);
+    context->getRightChannel().getTaskController().setTaskState(UserTaskState::Stopped);
 }
 
 void CommandHandler::handlerSetInWorkZone(const ParsedInstruction& instr) {
