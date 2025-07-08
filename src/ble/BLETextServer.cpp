@@ -111,6 +111,8 @@ void BLETextServer::notify(const char* text) {
         _readChar->setValue(text);
         _readChar->notify();
     }
+
+    Serial.println(text);
 }
 
 void BLETextServer::notifyFormatted(const char* format, ...) {

@@ -34,6 +34,8 @@
 #include "core/DebugInfoPrinter.h"
 #include "core/LogUtils.h"
 
+#include "serial/SerialHandler.h"
+
 // === User-Defined Timer Frequency ===
 #define TASK_LOOP_UPDATE_FREQUENCY_HZ         1  // Task loop frequency in Hz
 #define TIMER_PERIOD_US(Freq)                 (1000000ull / Freq)  // Period in microseconds
@@ -41,6 +43,13 @@
 
 // --- Create Services ---
 static SystemContext& context = SystemContext::instance();
+
+// Serial Buffers
+constexpr size_t bufferSize = 128;
+char bufferA[bufferSize];
+char bufferB[bufferSize];
+
+SerialHandler serialHandler(bufferA, bufferB, bufferSize);
 
 // === Timer Setup ===
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
@@ -141,6 +150,27 @@ esp_err_t setupMCPWM(void) {
   return ESP_OK;
 }
 
+/*
+Example Serial Commands:
+  - "setSpeedSource GPS" - Set speed source to GPS
+  - "setMinWorkingSpeed 0.5" - Set minimum working speed to 0.5 m/s
+  - "setSimSpeed 1.0" - Set simulated speed to 1.0 m/s
+  - "getTaskInfo" - Request current task information
+  - "reportError" - Report any errors in the system
+*/
+void onSerialMessage(const char* message, size_t length) {
+  String request = String(message, length);
+  request.trim();
+
+  LogUtils::info("Received Serial Message: %s", message);
+
+  if (serialHandler.isMessageTruncated()) {
+      LogUtils::warn("Message was truncated!");
+  }
+
+  SystemContext::instance().getBLECommandParser().dispatchInstruction(message);
+}
+
 void setup() {
   pinMode(RGB_LEDRPin, OUTPUT);
   pinMode(RGB_LEDGPin, OUTPUT);
@@ -150,6 +180,8 @@ void setup() {
   Serial1.begin(9600, SERIAL_8N1, GPS_UART_RX_PIN, GPS_UART_TX_PIN);
 
   context.writeRGBLEDs(LOW, HIGH, LOW);
+
+  serialHandler.setCallback(onSerialMessage);
 
   // LogUtils::setLogLevel(LogLevel::Info);
 
@@ -206,8 +238,14 @@ void loop() {
     }
   }
 
+  while (Serial.available()) {
+    char c = Serial.read();
+    serialHandler.onReceiveChar(c);
+  }
+
   while (Serial1.available()) {
-    gpsModule.encode(Serial1.read());
+    char c = Serial1.read();
+    gpsModule.encode(c);
   }
 
   if (timeToRefresh) {
