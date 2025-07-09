@@ -160,6 +160,10 @@ float DispenserChannel::getTargetPositionForRate(float desiredKgPerDaa) const {
     return constrain(desiredPositionPercent, 0.0f, 100.0f);
 }
 
+float DispenserChannel::getCurrentPositionPercent() const {
+    return getCurrentPositionPercent(_adcChannel);
+}
+
 float DispenserChannel::getCurrentPositionPercent(ADS1115Channels adcChannel) const {
     float voltage = context->getADS1115().readFilteredVoltage(adcChannel);
     voltage = constrain(voltage, MIN_POT_VOLTAGE, MAX_POT_VOLTAGE);

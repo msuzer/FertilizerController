@@ -61,6 +61,7 @@ public:
     void checkLowSpeedState();
     void updateApplicationMetrics();
     float getProcessedAreaPerSec() const;
+    float getCurrentPositionPercent() const;
     float getCurrentPositionPercent(ADS1115Channels adcChannel) const;
     float getTargetPositionForRate(float desiredKgPerDaa) const;
     void reportErrorFlags(void);

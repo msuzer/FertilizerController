@@ -253,13 +253,9 @@ void loop() {
     if (context.getLeftChannel().isClientInWorkZone()) {
       context.getCommandHandler().handlerGetTaskInfo({}); // pass empty ParsedInstruction
     }
-        // --- Compute averages and convert to voltage ---
-    float pos1 = ads1115.readFilteredVoltage(ADS1115Channels::CH0);
-    float pos2 = ads1115.readFilteredVoltage(ADS1115Channels::CH1);
-    float current1 = ads1115.readFilteredCurrent(ADS1115Channels::CH2);
-    float current2 = ads1115.readFilteredCurrent(ADS1115Channels::CH3);
-  
-    DebugInfoPrinter::printMotorDiagnostics(pos1, pos2, current1, current2);
+
+    // TODO make printMotorCurrent static
+    context.getLeftChannel().printMotorCurrent();
     DebugInfoPrinter::printAll(context);
   }
 }
