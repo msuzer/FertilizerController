@@ -206,9 +206,6 @@ void setup() {
   BLETextServer& bleServer = context.getBLETextServer();
 
   bleServer.start();
-
-  // context.getLeftChannel().testMotorRamp();
-  // context.getRightChannel().testMotorRamp();
 }
 
 void loop() {
@@ -247,6 +244,8 @@ void loop() {
     char c = Serial1.read();
     gpsModule.encode(c);
   }
+
+  serialHandler.process(); // Process any pending serial messages
 
   if (timeToRefresh) {
     timeToRefresh = false;

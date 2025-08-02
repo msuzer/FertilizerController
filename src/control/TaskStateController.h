@@ -36,13 +36,6 @@ public:
 
     // Transition validation + mutation
     bool setTaskState(UserTaskState newState);
-    bool stopTask() {
-        if (isTaskActive()) {
-            taskState = UserTaskState::Stopped;
-            return true;
-        }
-        return false;
-    }
 
     // State names
     const char* getTaskStateName() const { return taskStateToString(taskState); }

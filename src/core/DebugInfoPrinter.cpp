@@ -228,7 +228,7 @@ void DebugInfoPrinter::printResetReason(const char* cpuLabel, int reason) {
 }
 
 void DebugInfoPrinter::printMotorDiagnostics(float pos1, float pos2, float current1, float current2) {
-    LogUtils::info("[MOTORS] Pos1: %.2fV | Pos2: %.2fV | Curr1: %.2fA | Curr2: %.2fA\n",
+    LogUtils::info("[MOTORS] Pos1: %.2f%% | Pos2: %.2f%% | Curr1: %.2fA | Curr2: %.2fA\n",
            pos1, pos2, current1, current2);
 }
 

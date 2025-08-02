@@ -68,7 +68,6 @@ public:
     void applyPIControl();
     void applyPIControl(float target, float measured);
     void printMotorCurrent(void);
-    void testMotorRamp(void);
 
     static bool isClientInWorkZone() { return clientInWorkZone; }
     static void setClientInWorkZone(bool inWorkZone) { clientInWorkZone = inWorkZone; }

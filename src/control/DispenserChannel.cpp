@@ -188,7 +188,7 @@ void DispenserChannel::applyPIControl() {
     if (testTick >= 120) { // additional 20 ticks to keep servo staying at 100% for 2 secs.
       testDirection = false; // Reverse direction
     } else if (testTick <= 0) {
-      taskStateController.stopTask(); // Stop the test
+      taskStateController.setTaskState(UserTaskState::Stopped); // Stop the test
       testTick = 0; // Reset test tick on stop
       testDirection = true;
     }
@@ -217,56 +217,4 @@ void DispenserChannel::printMotorCurrent(void) {
   float current2 = ads1115.readFilteredCurrent(ADS1115Channels::CH3);
 
   DebugInfoPrinter::printMotorDiagnostics(pos1, pos2, current1, current2);
-}
-
-void DispenserChannel::testMotorRamp(void) {
-  LogUtils::info("[MOTOR] [%s] Starting motor ramp test\n", channelName.c_str());
-
-  // Ramp up forward
-  LogUtils::info("[MOTOR] Ramp Up 0 -> 100\n");
-  for (int pwm = 0; pwm <= VNH7070AS::MAX_DUTY; pwm++) {
-    printMotorCurrent();
-    motorDriver.setSpeed(pwm);
-    delay(50);
-  }
-
-  // Dead time
-  LogUtils::info("[MOTOR] at full speed (CW)!\n");
-  delay(2000);
-
-  // Ramp down forward
-  LogUtils::info("[MOTOR] Ramp Down 100 -> 0\n");
-  for (int pwm = VNH7070AS::MAX_DUTY; pwm >= 0; pwm--) {
-    printMotorCurrent();
-    motorDriver.setSpeed(pwm);
-    delay(50);
-  }
-
-  // Dead time
-  LogUtils::info("[MOTOR] Stop.\n");
-  delay(2000);
-
-  // Ramp up reverse
-  LogUtils::info("[MOTOR] Ramp Up Reverse 0 -> -100\n");
-  for (int pwm = 0; pwm >= -VNH7070AS::MAX_DUTY; pwm--) {
-    printMotorCurrent();
-    motorDriver.setSpeed(pwm);
-    delay(50);
-  }
-
-  // Dead time
-  LogUtils::info("[MOTOR] at full speed (CCW)!\n");
-  delay(2000);
-
-  // Ramp down reverse
-  LogUtils::info("[MOTOR] Ramp Down Reverse -100 -> 0\n");
-  for (int pwm = -VNH7070AS::MAX_DUTY; pwm <= 0; pwm++) {
-    printMotorCurrent();
-    motorDriver.setSpeed(pwm);
-    delay(50);
-  }
-
-  LogUtils::info("[MOTOR] Stop.\n");
-  delay(2000);
-  LogUtils::info("[MOTOR] [%s] Motor ramp test complete\n", channelName.c_str());
 }
